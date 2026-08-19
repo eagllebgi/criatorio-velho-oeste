@@ -1,0 +1,53 @@
+@import "tailwindcss";
+
+/*
+ * Paleta de identidade visual — Criatório Velho Oeste
+ * Altere apenas os valores abaixo para trocar a identidade visual do site inteiro.
+ */
+:root {
+  --color-cream: #faf6ee;
+  --color-cream-dark: #f0e7d6;
+  --color-sand: #e8dcc4;
+  --color-brown: #6b4a34;
+  --color-brown-dark: #4a3222;
+  --color-green: #22331f;
+  --color-green-dark: #16211a;
+  --color-green-light: #3d5236;
+  --color-gold: #b6903f;
+  --color-gold-light: #d4b06a;
+  --color-ink: #221b15;
+
+  --background: var(--color-cream);
+  --foreground: var(--color-ink);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+
+  --color-brand-cream: var(--color-cream);
+  --color-brand-cream-dark: var(--color-cream-dark);
+  --color-brand-sand: var(--color-sand);
+  --color-brand-brown: var(--color-brown);
+  --color-brand-brown-dark: var(--color-brown-dark);
+  --color-brand-green: var(--color-green);
+  --color-brand-green-dark: var(--color-green-dark);
+  --color-brand-green-light: var(--color-green-light);
+  --color-brand-gold: var(--color-gold);
+  --color-brand-gold-light: var(--color-gold-light);
+  --color-brand-ink: var(--color-ink);
+
+  --font-sans: var(--font-inter);
+  --font-serif: var(--font-fraunces);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+}
+
+@layer utilities {
+  .container-site {
+    @apply mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8;
+  }
+}
