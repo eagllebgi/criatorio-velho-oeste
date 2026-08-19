@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
-import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ImageOff, ChevronRight } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { getProductBySlug } from "@/lib/data/products";
 import { formatBRL } from "@/lib/utils";
 import { StockBadge } from "@/components/catalog/StockBadge";
 import { ProductDetailPurchase } from "@/components/catalog/ProductDetailPurchase";
+import { ProductGallery } from "@/components/catalog/ProductGallery";
 import { siteConfig } from "@/lib/config/site";
 
 export async function generateMetadata(
@@ -74,22 +74,7 @@ export default async function ProductPage(props: PageProps<"/ovos/[slug]">) {
       </nav>
 
       <div className="grid gap-10 lg:grid-cols-2 lg:gap-16">
-        <div className="relative aspect-[4/3] w-full overflow-hidden rounded-3xl bg-brand-sand">
-          {product.mainImage ? (
-            <Image
-              src={product.mainImage}
-              alt={product.name}
-              fill
-              sizes="(min-width: 1024px) 45vw, 90vw"
-              className="object-cover"
-              priority
-            />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center text-brand-brown/30">
-              <ImageOff className="h-10 w-10" aria-hidden="true" />
-            </div>
-          )}
-        </div>
+        <ProductGallery images={product.images} alt={product.name} />
 
         <div className="flex flex-col gap-4">
           {product.categoryName && (
