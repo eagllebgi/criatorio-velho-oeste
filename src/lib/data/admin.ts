@@ -11,17 +11,22 @@ const PRODUCT_SELECT = `
 /** Todos os produtos (ativos e inativos), para o painel administrativo. */
 export async function getAllProductsAdmin(): Promise<Product[]> {
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("products")
-    .select(PRODUCT_SELECT)
-    .order("display_order", { ascending: true });
+  const { data, error } = await supabase.from("products").select(PRODUCT_SELECT);
 
   if (error) {
     console.error("getAllProductsAdmin error:", error.message);
     return [];
   }
 
-  return (data ?? []).map(mapProduct);
+  const products = (data ?? []).map(mapProduct);
+
+  // Lista do admin: ativos primeiro, depois inativos; dentro de cada grupo,
+  // ordem alfabética pelo nome (usando localeCompare "pt-BR" pra acentos
+  // ficarem na posição certa).
+  return products.sort((a, b) => {
+    if (a.active !== b.active) return a.active ? -1 : 1;
+    return a.name.localeCompare(b.name, "pt-BR") || a.displayOrder - b.displayOrder;
+  });
 }
 
 export async function getProductByIdAdmin(id: string): Promise<Product | null> {
