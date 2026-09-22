@@ -81,7 +81,12 @@ export default async function ProductPage(props: PageProps<"/ovos/[slug]">) {
       </nav>
 
       <div className="grid gap-10 lg:grid-cols-2 lg:gap-16">
-        <ProductGallery images={product.images} alt={product.name} />
+        <ProductGallery
+          images={product.images}
+          alt={product.name}
+          productId={product.id}
+          isAdmin={isAdmin}
+        />
 
         <div className="flex flex-col gap-4">
           {product.categoryName && (

@@ -4,6 +4,7 @@ import { useState } from "react";
 import Image from "next/image";
 import { ImageOff } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { AdminPhotoControl } from "@/components/catalog/AdminPhotoControl";
 
 /**
  * Galeria de fotos da página de produto: imagem principal grande + miniaturas
@@ -14,12 +15,24 @@ import { cn } from "@/lib/utils";
 export function ProductGallery({
   images,
   alt,
+  productId,
+  isAdmin = false,
 }: {
   images: string[];
   alt: string;
+  /** Só precisa vir preenchido quando isAdmin=true (habilita o botão de trocar foto). */
+  productId?: string;
+  isAdmin?: boolean;
 }) {
+  const [localImages, setLocalImages] = useState(images);
   const [active, setActive] = useState(0);
-  const current = images[active] ?? null;
+  const current = localImages[active] ?? null;
+
+  function handleUploaded(url: string) {
+    // A foto nova entra como principal (primeira da lista) e já fica selecionada.
+    setLocalImages((prev) => [url, ...prev.filter((img) => img !== url)]);
+    setActive(0);
+  }
 
   return (
     <div className="flex flex-col gap-3">
@@ -38,11 +51,14 @@ export function ProductGallery({
             <ImageOff className="h-10 w-10" aria-hidden="true" />
           </div>
         )}
+        {isAdmin && productId && (
+          <AdminPhotoControl productId={productId} onUploaded={handleUploaded} />
+        )}
       </div>
 
-      {images.length > 1 && (
+      {localImages.length > 1 && (
         <div className="flex gap-2 overflow-x-auto pb-1">
-          {images.map((img, i) => (
+          {localImages.map((img, i) => (
             <button
               key={`${img}-${i}`}
               type="button"

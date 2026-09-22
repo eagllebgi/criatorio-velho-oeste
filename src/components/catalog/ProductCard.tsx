@@ -12,6 +12,7 @@ import { QuantitySelector } from "@/components/catalog/QuantitySelector";
 import { StockBadge } from "@/components/catalog/StockBadge";
 import { AdminStockControl } from "@/components/catalog/AdminStockControl";
 import { AdminPriceControl } from "@/components/catalog/AdminPriceControl";
+import { AdminPhotoControl } from "@/components/catalog/AdminPhotoControl";
 import { Button } from "@/components/ui/Button";
 import { trackEvent } from "@/lib/analytics/events";
 
@@ -26,6 +27,7 @@ export function ProductCard({
   const { addItem, openDrawer } = useCart();
   const [quantity, setQuantity] = useState(1);
   const [justAdded, setJustAdded] = useState(false);
+  const [mainImage, setMainImage] = useState(product.mainImage);
 
   const status = getStockStatus(product);
   const isOut = status.level === "out";
@@ -37,7 +39,7 @@ export function ProductCard({
         name: product.name,
         slug: product.slug,
         price: product.price,
-        image: product.mainImage,
+        image: mainImage,
         stock: product.stock,
       },
       quantity,
@@ -51,9 +53,9 @@ export function ProductCard({
   return (
     <div className="group flex flex-col overflow-hidden rounded-2xl border border-brand-sand/70 bg-white transition-shadow hover:shadow-lg hover:shadow-brand-green/5">
       <div className="relative aspect-[4/3] w-full overflow-hidden bg-brand-sand">
-        {product.mainImage ? (
+        {mainImage ? (
           <Image
-            src={product.mainImage}
+            src={mainImage}
             alt={product.name}
             fill
             sizes="(min-width: 1280px) 23vw, (min-width: 1024px) 30vw, (min-width: 640px) 45vw, 90vw"
@@ -67,6 +69,8 @@ export function ProductCard({
         <div className="absolute left-2 right-2 top-2 sm:left-3 sm:right-3 sm:top-3">
           <StockBadge stock={product.stock} lowStockThreshold={product.lowStockThreshold} />
         </div>
+        {/* Trocar a foto principal direto do card — só aparece pro admin logado. */}
+        {isAdmin && <AdminPhotoControl productId={product.id} onUploaded={setMainImage} />}
       </div>
 
       <div className="flex flex-1 flex-col gap-2 p-3 sm:gap-2.5 sm:p-4">
