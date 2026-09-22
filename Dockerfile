@@ -34,6 +34,15 @@ ENV NEXT_PUBLIC_SUPABASE_ANON_KEY=$NEXT_PUBLIC_SUPABASE_ANON_KEY
 ENV NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL
 
 ENV NEXT_TELEMETRY_DISABLED=1
+
+# Limita o heap do Node durante o build. Sem isso, em VPS com pouca memória
+# (comum em instalações Coolify), o processo de build pode ser morto pelo
+# sistema operacional por falta de RAM — o erro aparece como algo genérico
+# tipo "Failed to collect page data", sem explicação clara. Ajuste o valor
+# (em MB) conforme a RAM disponível no seu servidor: 1536 é seguro para
+# servidores com 2GB+; baixe para 768 se tiver menos memória.
+ENV NODE_OPTIONS="--max-old-space-size=1536"
+
 RUN npm run build
 
 # ---------------------------------------------------------------------------

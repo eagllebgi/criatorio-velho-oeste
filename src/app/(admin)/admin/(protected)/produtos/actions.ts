@@ -87,6 +87,52 @@ export async function toggleProductActive(productId: string, nextActive: boolean
   revalidatePath("/ovos");
 }
 
+export async function toggleProductFeatured(productId: string, nextFeatured: boolean) {
+  const supabase = await createClient();
+  await supabase.from("products").update({ featured: nextFeatured }).eq("id", productId);
+  revalidatePath("/admin/produtos");
+  revalidatePath("/");
+}
+
+/** Edição rápida de preço direto na listagem (sem abrir o formulário completo). */
+export async function updateProductPriceQuick(
+  productId: string,
+  price: number | null,
+): Promise<{ error: string | null }> {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("products")
+    .update({ price: price !== null && price >= 0 ? price : null })
+    .eq("id", productId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/admin/produtos");
+  revalidatePath("/admin/precos");
+  revalidatePath("/ovos");
+  return { error: null };
+}
+
+/** Edição rápida de estoque direto na listagem (sem abrir o formulário completo). */
+export async function updateProductStockQuick(
+  productId: string,
+  stock: number,
+): Promise<{ error: string | null }> {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("products")
+    .update({ stock: Math.max(0, stock) })
+    .eq("id", productId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/admin/produtos");
+  revalidatePath("/admin/estoque");
+  revalidatePath("/admin");
+  revalidatePath("/ovos");
+  return { error: null };
+}
+
 export async function deleteProduct(productId: string) {
   const supabase = await createClient();
   await supabase.from("products").delete().eq("id", productId);
