@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { cache } from "react";
 import type { Database } from "@/lib/types/database";
 
 /**
@@ -32,3 +33,23 @@ export async function createClient() {
     },
   );
 }
+
+/**
+ * Usuário administrador logado (ou null, se ninguém estiver logado). Usada
+ * nas páginas PÚBLICAS do site pra saber se quem está navegando é o admin —
+ * nesse caso ele vê informações extras (como o estoque exato) e controles de
+ * edição direto na página, que um cliente comum nunca vê nem consegue usar
+ * (o banco recusa qualquer alteração de quem não estiver autenticado, então
+ * isso é só uma conveniência de interface, não a camada de segurança).
+ *
+ * Envolvida em `cache()` pra, dentro da mesma requisição, checar a sessão
+ * uma única vez mesmo se várias partes da página (layout, seções, cards)
+ * perguntarem "o admin está logado?".
+ */
+export const getAdminUser = cache(async () => {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  return user;
+});

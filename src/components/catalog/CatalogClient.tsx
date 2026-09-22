@@ -9,9 +9,11 @@ import { FloatingCartButton } from "@/components/cart/FloatingCartButton";
 export function CatalogClient({
   products,
   categories,
+  isAdmin = false,
 }: {
   products: Product[];
   categories: Category[];
+  isAdmin?: boolean;
 }) {
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState<string | "all">("all");
@@ -75,7 +77,7 @@ export function CatalogClient({
         sort={sort}
         onSortChange={setSort}
       />
-      <ProductGrid products={filtered} />
+      <ProductGrid products={filtered} isAdmin={isAdmin} />
       <FloatingCartButton />
     </div>
   );

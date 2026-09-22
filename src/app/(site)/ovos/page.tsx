@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { CatalogClient } from "@/components/catalog/CatalogClient";
 import { EmptyState } from "@/components/catalog/EmptyState";
 import { getActiveCategories, getActiveProducts } from "@/lib/data/products";
+import { getAdminUser } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
   title: "Ovos Férteis",
@@ -10,10 +11,12 @@ export const metadata: Metadata = {
 };
 
 export default async function OvosPage() {
-  const [products, categories] = await Promise.all([
+  const [products, categories, adminUser] = await Promise.all([
     getActiveProducts(),
     getActiveCategories(),
+    getAdminUser(),
   ]);
+  const isAdmin = Boolean(adminUser);
 
   return (
     <div className="container-site py-14">
@@ -35,7 +38,7 @@ export default async function OvosPage() {
           showWhatsApp
         />
       ) : (
-        <CatalogClient products={products} categories={categories} />
+        <CatalogClient products={products} categories={categories} isAdmin={isAdmin} />
       )}
     </div>
   );

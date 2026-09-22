@@ -5,9 +5,11 @@ import { ChevronRight } from "lucide-react";
 import { getProductBySlug } from "@/lib/data/products";
 import { formatBRL } from "@/lib/utils";
 import { StockBadge } from "@/components/catalog/StockBadge";
+import { AdminStockControl } from "@/components/catalog/AdminStockControl";
 import { ProductDetailPurchase } from "@/components/catalog/ProductDetailPurchase";
 import { ProductGallery } from "@/components/catalog/ProductGallery";
 import { siteConfig } from "@/lib/config/site";
+import { getAdminUser } from "@/lib/supabase/server";
 
 export async function generateMetadata(
   props: PageProps<"/ovos/[slug]">,
@@ -34,9 +36,13 @@ export async function generateMetadata(
 
 export default async function ProductPage(props: PageProps<"/ovos/[slug]">) {
   const { slug } = await props.params;
-  const product = await getProductBySlug(slug);
+  const [product, adminUser] = await Promise.all([
+    getProductBySlug(slug),
+    getAdminUser(),
+  ]);
 
   if (!product) notFound();
+  const isAdmin = Boolean(adminUser);
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -96,11 +102,9 @@ export default async function ProductPage(props: PageProps<"/ovos/[slug]">) {
             )}
           </div>
 
-          {product.stock > 0 && (
-            <span className="text-sm text-brand-ink/60">
-              Disponíveis: {product.stock} ovos
-            </span>
-          )}
+          {/* Quantidade exata em estoque é informação interna — só o admin
+              logado vê e edita direto aqui; o cliente só vê o selo acima. */}
+          {isAdmin && <AdminStockControl productId={product.id} stock={product.stock} />}
 
           {(product.description || product.shortDescription) && (
             <p className="text-sm leading-relaxed text-brand-ink/70 sm:text-base">

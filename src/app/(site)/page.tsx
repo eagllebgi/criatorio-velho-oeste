@@ -7,14 +7,18 @@ import { Gallery } from "@/components/home/Gallery";
 import { FAQ } from "@/components/home/FAQ";
 import { FinalCta } from "@/components/home/FinalCta";
 import { getFeaturedProducts } from "@/lib/data/products";
+import { getAdminUser } from "@/lib/supabase/server";
 
 export default async function HomePage() {
-  const featuredProducts = await getFeaturedProducts();
+  const [featuredProducts, adminUser] = await Promise.all([
+    getFeaturedProducts(),
+    getAdminUser(),
+  ]);
 
   return (
     <>
       <Hero />
-      <FeaturedProducts products={featuredProducts} />
+      <FeaturedProducts products={featuredProducts} isAdmin={Boolean(adminUser)} />
       <About />
       <HowItWorks />
       <Differentials />

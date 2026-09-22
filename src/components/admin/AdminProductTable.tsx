@@ -13,8 +13,8 @@ import {
   toggleProductActive,
   toggleProductFeatured,
   updateProductPriceQuick,
-  updateProductStockQuick,
 } from "@/app/(admin)/admin/(protected)/produtos/actions";
+import { updateProductStockQuick } from "@/lib/actions/products";
 
 const BUCKET = "product-images";
 

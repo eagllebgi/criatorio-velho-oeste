@@ -10,10 +10,18 @@ import type { Product } from "@/lib/types/domain";
 import { useCart } from "@/lib/cart/cart-context";
 import { QuantitySelector } from "@/components/catalog/QuantitySelector";
 import { StockBadge } from "@/components/catalog/StockBadge";
+import { AdminStockControl } from "@/components/catalog/AdminStockControl";
 import { Button } from "@/components/ui/Button";
 import { trackEvent } from "@/lib/analytics/events";
 
-export function ProductCard({ product }: { product: Product }) {
+export function ProductCard({
+  product,
+  isAdmin = false,
+}: {
+  product: Product;
+  /** Administrador logado vendo o site público: mostra e permite editar o estoque exato. */
+  isAdmin?: boolean;
+}) {
   const { addItem, openDrawer } = useCart();
   const [quantity, setQuantity] = useState(1);
   const [justAdded, setJustAdded] = useState(false);
@@ -84,11 +92,10 @@ export function ProductCard({ product }: { product: Product }) {
           {product.price !== null && <span className="text-xs text-brand-ink/50">/ ovo</span>}
         </div>
 
-        {!isOut && (
-          <span className="text-xs text-brand-ink/50">
-            Disponíveis: {product.stock} ovos
-          </span>
-        )}
+        {/* A quantidade exata em estoque é informação interna — o selo (StockBadge)
+            já avisa o cliente se está disponível, quase acabando ou indisponível.
+            Só o admin logado vê e edita o número exato, direto aqui na página. */}
+        {isAdmin && <AdminStockControl productId={product.id} stock={product.stock} />}
 
         <div className="mt-auto flex flex-col gap-2 pt-3 sm:flex-row sm:items-center">
           {!isOut && (

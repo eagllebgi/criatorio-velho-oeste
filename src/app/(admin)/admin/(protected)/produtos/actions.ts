@@ -113,25 +113,9 @@ export async function updateProductPriceQuick(
   return { error: null };
 }
 
-/** Edição rápida de estoque direto na listagem (sem abrir o formulário completo). */
-export async function updateProductStockQuick(
-  productId: string,
-  stock: number,
-): Promise<{ error: string | null }> {
-  const supabase = await createClient();
-  const { error } = await supabase
-    .from("products")
-    .update({ stock: Math.max(0, stock) })
-    .eq("id", productId);
-
-  if (error) return { error: error.message };
-
-  revalidatePath("/admin/produtos");
-  revalidatePath("/admin/estoque");
-  revalidatePath("/admin");
-  revalidatePath("/ovos");
-  return { error: null };
-}
+// A edição rápida de estoque (usada nesta tabela e também direto nas páginas
+// públicas quando o admin está logado) mora em @/lib/actions/products —
+// veja updateProductStockQuick lá.
 
 export async function deleteProduct(productId: string) {
   const supabase = await createClient();
