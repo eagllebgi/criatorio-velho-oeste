@@ -14,6 +14,16 @@ const overlayClasses: Record<"available" | "low" | "out", string> = {
   out: "bg-brand-ink text-white shadow-md shadow-black/10",
 };
 
+// No celular a grade agora tem 2 colunas, então a foto (e o selo em cima
+// dela) fica bem mais estreita. O texto "Indisponível no momento" não cabe
+// nesse espaço — por isso usamos uma versão curta só na tela pequena, com
+// a frase completa continuando a aparecer a partir do tablet/desktop.
+const shortLabel: Record<"available" | "low" | "out", string> = {
+  available: "Disponível",
+  low: "Últimas unid.",
+  out: "Indisponível",
+};
+
 export function StockBadge({
   stock,
   lowStockThreshold,
@@ -25,8 +35,9 @@ export function StockBadge({
   const tone = status.level === "available" ? "available" : status.level === "low" ? "low" : "out";
 
   return (
-    <Badge tone={tone} className={cn(overlayClasses[tone])}>
-      {status.label}
+    <Badge tone={tone} className={cn(overlayClasses[tone], "max-w-full truncate")}>
+      <span className="sm:hidden">{shortLabel[tone]}</span>
+      <span className="hidden sm:inline">{status.label}</span>
     </Badge>
   );
 }

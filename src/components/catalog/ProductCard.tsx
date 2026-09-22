@@ -55,28 +55,30 @@ export function ProductCard({ product }: { product: Product }) {
             <ImageOff className="h-8 w-8" aria-hidden="true" />
           </div>
         )}
-        <div className="absolute left-3 top-3">
+        <div className="absolute left-2 right-2 top-2 sm:left-3 sm:right-3 sm:top-3">
           <StockBadge stock={product.stock} lowStockThreshold={product.lowStockThreshold} />
         </div>
       </div>
 
-      <div className="flex flex-1 flex-col gap-2.5 p-4">
+      <div className="flex flex-1 flex-col gap-2 p-3 sm:gap-2.5 sm:p-4">
         {product.categoryName && (
-          <span className="text-xs font-medium uppercase tracking-wide text-brand-brown/70">
+          <span className="text-[0.65rem] font-medium uppercase tracking-wide text-brand-brown/70 sm:text-xs">
             {product.categoryName}
           </span>
         )}
-        <h3 className="font-serif text-lg font-semibold text-brand-ink">
+        <h3 className="line-clamp-2 font-serif text-base font-semibold text-brand-ink sm:text-lg">
           <Link href={`/ovos/${product.slug}`} className="hover:text-brand-green">
             {product.name}
           </Link>
         </h3>
         {product.shortDescription && (
-          <p className="text-sm text-brand-ink/60">{product.shortDescription}</p>
+          <p className="hidden text-sm text-brand-ink/60 sm:line-clamp-2 sm:block">
+            {product.shortDescription}
+          </p>
         )}
 
         <div className="mt-1 flex items-baseline gap-1">
-          <span className="text-lg font-semibold text-brand-green">
+          <span className="text-base font-semibold text-brand-green sm:text-lg">
             {formatBRL(product.price)}
           </span>
           {product.price !== null && <span className="text-xs text-brand-ink/50">/ ovo</span>}
@@ -88,15 +90,17 @@ export function ProductCard({ product }: { product: Product }) {
           </span>
         )}
 
-        <div className="mt-auto flex items-center gap-2 pt-3">
+        <div className="mt-auto flex flex-col gap-2 pt-3 sm:flex-row sm:items-center">
           {!isOut && (
-            <QuantitySelector value={quantity} max={product.stock} onChange={setQuantity} />
+            <div className="flex justify-center sm:justify-start">
+              <QuantitySelector value={quantity} max={product.stock} onChange={setQuantity} />
+            </div>
           )}
           <Button
             onClick={handleAdd}
             disabled={isOut}
             size="sm"
-            className="flex-1"
+            className="w-full sm:w-auto sm:flex-1"
             variant={justAdded ? "secondary" : "primary"}
           >
             {isOut ? (
