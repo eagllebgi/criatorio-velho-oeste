@@ -8,28 +8,15 @@ import type { Product } from "@/lib/types/domain";
 import { Badge } from "@/components/ui/Badge";
 import { createClient } from "@/lib/supabase/client";
 import { buildProductImagePath } from "@/lib/storage";
+import { parsePriceInput, toPriceInputValue } from "@/lib/utils";
 import {
   deleteProduct,
   toggleProductActive,
   toggleProductFeatured,
-  updateProductPriceQuick,
 } from "@/app/(admin)/admin/(protected)/produtos/actions";
-import { updateProductStockQuick } from "@/lib/actions/products";
+import { updateProductPriceQuick, updateProductStockQuick } from "@/lib/actions/products";
 
 const BUCKET = "product-images";
-
-function parsePriceInput(raw: string): number | null {
-  const trimmed = raw.trim();
-  if (!trimmed) return null;
-  const normalized = trimmed.replace(/\./g, "").replace(",", ".");
-  const value = Number(normalized);
-  return Number.isFinite(value) && value >= 0 ? value : null;
-}
-
-function toPriceInputValue(price: number | null): string {
-  if (price === null) return "";
-  return price.toFixed(2).replace(".", ",");
-}
 
 export function AdminProductTable({ products }: { products: Product[] }) {
   const [isPending, startTransition] = useTransition();

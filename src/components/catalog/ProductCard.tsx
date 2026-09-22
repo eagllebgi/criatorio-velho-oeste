@@ -11,6 +11,7 @@ import { useCart } from "@/lib/cart/cart-context";
 import { QuantitySelector } from "@/components/catalog/QuantitySelector";
 import { StockBadge } from "@/components/catalog/StockBadge";
 import { AdminStockControl } from "@/components/catalog/AdminStockControl";
+import { AdminPriceControl } from "@/components/catalog/AdminPriceControl";
 import { Button } from "@/components/ui/Button";
 import { trackEvent } from "@/lib/analytics/events";
 
@@ -91,6 +92,10 @@ export function ProductCard({
           </span>
           {product.price !== null && <span className="text-xs text-brand-ink/50">/ ovo</span>}
         </div>
+
+        {/* O preço continua visível pra todo mundo, normal — só o admin logado
+            ganha, aqui do lado, um campo pra editar esse mesmo preço na hora. */}
+        {isAdmin && <AdminPriceControl productId={product.id} price={product.price} />}
 
         {/* A quantidade exata em estoque é informação interna — o selo (StockBadge)
             já avisa o cliente se está disponível, quase acabando ou indisponível.

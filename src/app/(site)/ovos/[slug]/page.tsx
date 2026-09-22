@@ -6,6 +6,7 @@ import { getProductBySlug } from "@/lib/data/products";
 import { formatBRL } from "@/lib/utils";
 import { StockBadge } from "@/components/catalog/StockBadge";
 import { AdminStockControl } from "@/components/catalog/AdminStockControl";
+import { AdminPriceControl } from "@/components/catalog/AdminPriceControl";
 import { ProductDetailPurchase } from "@/components/catalog/ProductDetailPurchase";
 import { ProductGallery } from "@/components/catalog/ProductGallery";
 import { siteConfig } from "@/lib/config/site";
@@ -101,6 +102,10 @@ export default async function ProductPage(props: PageProps<"/ovos/[slug]">) {
               <span className="text-sm text-brand-ink/50">/ ovo</span>
             )}
           </div>
+
+          {/* O preço continua visível pra todo mundo, normal — só o admin
+              logado ganha um campo pra editar esse mesmo preço na hora. */}
+          {isAdmin && <AdminPriceControl productId={product.id} price={product.price} />}
 
           {/* Quantidade exata em estoque é informação interna — só o admin
               logado vê e edita direto aqui; o cliente só vê o selo acima. */}

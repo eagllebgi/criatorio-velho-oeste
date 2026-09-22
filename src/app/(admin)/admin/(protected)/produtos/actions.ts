@@ -94,28 +94,10 @@ export async function toggleProductFeatured(productId: string, nextFeatured: boo
   revalidatePath("/");
 }
 
-/** Edição rápida de preço direto na listagem (sem abrir o formulário completo). */
-export async function updateProductPriceQuick(
-  productId: string,
-  price: number | null,
-): Promise<{ error: string | null }> {
-  const supabase = await createClient();
-  const { error } = await supabase
-    .from("products")
-    .update({ price: price !== null && price >= 0 ? price : null })
-    .eq("id", productId);
-
-  if (error) return { error: error.message };
-
-  revalidatePath("/admin/produtos");
-  revalidatePath("/admin/precos");
-  revalidatePath("/ovos");
-  return { error: null };
-}
-
-// A edição rápida de estoque (usada nesta tabela e também direto nas páginas
-// públicas quando o admin está logado) mora em @/lib/actions/products —
-// veja updateProductStockQuick lá.
+// A edição rápida de preço e de estoque (usadas nesta tabela e também direto
+// nas páginas públicas quando o admin está logado) moram em
+// @/lib/actions/products — veja updateProductPriceQuick e
+// updateProductStockQuick lá.
 
 export async function deleteProduct(productId: string) {
   const supabase = await createClient();
