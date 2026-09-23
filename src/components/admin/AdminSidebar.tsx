@@ -100,6 +100,18 @@ export function AdminSidebar() {
             </Link>
           );
         })}
+        {/* No celular o menu do admin ficava só com os links internos — faltava
+            um jeito rápido de voltar pro site (antes tinha que sair do painel
+            e navegar de novo). Aqui replica o "Ver site" que já existia na
+            versão de computador. */}
+        <Link
+          href="/"
+          target="_blank"
+          className="flex shrink-0 items-center gap-2 rounded-full bg-brand-cream-dark/60 px-3.5 py-1.5 text-xs font-medium text-brand-ink/70"
+        >
+          <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+          Ver site
+        </Link>
       </nav>
     </>
   );
