@@ -37,6 +37,21 @@ export function ProductForm({ product, categories, action, submitLabel }: Produc
         </div>
 
         <div>
+          <label htmlFor="product_type" className="block text-sm font-medium text-brand-ink">
+            Tipo
+          </label>
+          <select
+            id="product_type"
+            name="product_type"
+            defaultValue={product?.productType ?? "ovo"}
+            className={inputClass}
+          >
+            <option value="ovo">Ovo fértil</option>
+            <option value="ave">Ave viva</option>
+          </select>
+        </div>
+
+        <div>
           <label htmlFor="category_id" className="block text-sm font-medium text-brand-ink">
             Categoria
           </label>
@@ -70,7 +85,7 @@ export function ProductForm({ product, categories, action, submitLabel }: Produc
 
         <div>
           <label htmlFor="price" className="block text-sm font-medium text-brand-ink">
-            Preço por ovo (R$)
+            Preço (R$)
           </label>
           <input
             id="price"

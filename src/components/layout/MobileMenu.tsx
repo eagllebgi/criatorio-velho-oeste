@@ -19,6 +19,9 @@ export function MobileMenu() {
   // portal direto no <body>, ele escapa dessa limitação e cobre a tela
   // inteira corretamente.
   useEffect(() => {
+    // Flag "já montou no cliente" pra poder usar createPortal com segurança
+    // (evita divergência de hidratação entre servidor e navegador).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
   }, []);
 

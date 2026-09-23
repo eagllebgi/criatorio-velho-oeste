@@ -4,10 +4,14 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
-  Egg,
+  ShoppingBasket,
   Boxes,
   Tag,
   FolderTree,
+  Wallet,
+  Warehouse,
+  Bird,
+  Egg,
   LogOut,
   ExternalLink,
 } from "lucide-react";
@@ -16,10 +20,14 @@ import { signOut } from "@/app/(admin)/admin/login/actions";
 
 const navItems = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
-  { href: "/admin/produtos", label: "Produtos", icon: Egg, exact: false },
+  { href: "/admin/produtos", label: "Produtos", icon: ShoppingBasket, exact: false },
   { href: "/admin/estoque", label: "Estoque", icon: Boxes, exact: false },
   { href: "/admin/precos", label: "Preços", icon: Tag, exact: false },
   { href: "/admin/categorias", label: "Categorias", icon: FolderTree, exact: false },
+  { href: "/admin/financeiro", label: "Financeiro", icon: Wallet, exact: false },
+  { href: "/admin/baias", label: "Baias", icon: Warehouse, exact: false },
+  { href: "/admin/aves", label: "Plantel", icon: Bird, exact: false },
+  { href: "/admin/postura", label: "Postura", icon: Egg, exact: false },
 ];
 
 export function AdminSidebar() {

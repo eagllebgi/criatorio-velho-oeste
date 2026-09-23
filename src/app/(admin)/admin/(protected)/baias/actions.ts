@@ -1,0 +1,176 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { createClient } from "@/lib/supabase/server";
+import { nextCodigo } from "@/lib/actions/codigo";
+import { parsePriceInput } from "@/lib/utils";
+
+export interface FormState {
+  error: string | null;
+}
+
+function revalidateGestaoPaths() {
+  revalidatePath("/admin/baias");
+  revalidatePath("/admin/postura");
+  revalidatePath("/admin");
+}
+
+// ── Baias ─────────────────────────────────────────────────────────────────
+
+function parseBaiaForm(formData: FormData) {
+  const numero = String(formData.get("numero") ?? "").trim();
+  const especie = String(formData.get("especie") ?? "").trim();
+  const nomeInput = String(formData.get("nome") ?? "").trim();
+  const setor = String(formData.get("setor") ?? "").trim() || null;
+  const status = String(formData.get("status") ?? "Ativa");
+  const precoOvo = parsePriceInput(String(formData.get("preco_ovo") ?? ""));
+  const destinoPadrao = String(formData.get("destino_padrao") ?? "venda");
+  const observacoes = String(formData.get("observacoes") ?? "").trim() || null;
+
+  // Nome sugerido automaticamente a partir do número + espécie, a não ser
+  // que o usuário tenha digitado um nome próprio — mesmo comportamento que
+  // já era usado no protótipo do painel de produção.
+  const nome = nomeInput || (numero && especie ? `Baia ${numero} — ${especie}` : numero || especie);
+
+  return { numero, especie, nome, setor, status, precoOvo, destinoPadrao, observacoes };
+}
+
+export async function createBaia(_prevState: FormState, formData: FormData): Promise<FormState> {
+  const values = parseBaiaForm(formData);
+  if (!values.numero) return { error: "Informe o número da baia." };
+  if (!values.especie) return { error: "Informe a espécie." };
+
+  const supabase = await createClient();
+  const codigo = await nextCodigo(supabase, "baias", "B", 3);
+
+  const { error } = await supabase.from("baias").insert({
+    codigo,
+    numero: values.numero,
+    nome: values.nome,
+    especie: values.especie,
+    setor: values.setor,
+    status: values.status as "Reprodução" | "Ativa" | "Inativa",
+    preco_ovo: values.precoOvo,
+    destino_padrao: values.destinoPadrao as "venda" | "choc" | "reservado" | "descarte",
+    observacoes: values.observacoes,
+  });
+
+  if (error) return { error: error.message };
+  revalidateGestaoPaths();
+  return { error: null };
+}
+
+export async function updateBaia(
+  baiaId: string,
+  _prevState: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const values = parseBaiaForm(formData);
+  if (!values.numero) return { error: "Informe o número da baia." };
+  if (!values.especie) return { error: "Informe a espécie." };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("baias")
+    .update({
+      numero: values.numero,
+      nome: values.nome,
+      especie: values.especie,
+      setor: values.setor,
+      status: values.status as "Reprodução" | "Ativa" | "Inativa",
+      preco_ovo: values.precoOvo,
+      destino_padrao: values.destinoPadrao as "venda" | "choc" | "reservado" | "descarte",
+      observacoes: values.observacoes,
+    })
+    .eq("id", baiaId);
+
+  if (error) return { error: error.message };
+  revalidateGestaoPaths();
+  return { error: null };
+}
+
+export async function deleteBaia(baiaId: string) {
+  const supabase = await createClient();
+  await supabase.from("baias").delete().eq("id", baiaId);
+  revalidateGestaoPaths();
+  revalidatePath("/admin/aves");
+}
+
+// ── Observações ───────────────────────────────────────────────────────────
+
+export async function createObservacao(baiaId: string, texto: string): Promise<FormState> {
+  const trimmed = texto.trim();
+  if (!trimmed) return { error: "Escreva algo antes de salvar." };
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("baia_observacoes").insert({ baia_id: baiaId, texto: trimmed });
+
+  if (error) return { error: error.message };
+  revalidatePath("/admin/baias");
+  return { error: null };
+}
+
+// ── Postura (novo lote de ovos) ──────────────────────────────────────────
+
+export async function createPostura(
+  _prevState: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const baiaId = String(formData.get("baia_id") ?? "");
+  const quantidade = parseInt(String(formData.get("quantidade") ?? ""), 10);
+  const destino = String(formData.get("destino") ?? "venda") as
+    | "venda"
+    | "choc"
+    | "reservado"
+    | "descarte";
+  const dataPostura = String(formData.get("data_postura") ?? "").trim() || undefined;
+  const precoInput = parsePriceInput(String(formData.get("preco_unit") ?? ""));
+
+  if (!baiaId) return { error: "Baia inválida." };
+  if (!quantidade || quantidade <= 0) return { error: "Informe a quantidade de ovos." };
+
+  const supabase = await createClient();
+
+  const { data: baia } = await supabase
+    .from("baias")
+    .select("preco_ovo")
+    .eq("id", baiaId)
+    .maybeSingle();
+
+  const precoUnit = precoInput ?? baia?.preco_ovo ?? null;
+
+  // Mesma lógica do protótipo: o destino escolhido já define o status e,
+  // quando vai direto pra chocadeira, calcula a previsão de eclosão (21 dias
+  // é o padrão da maioria das aves domésticas).
+  let status: "Disponível" | "Incubando" | "Reservado" | "Descartado" = "Disponível";
+  let eclosaoPrevista: string | null = null;
+  const baseDate = dataPostura ? new Date(`${dataPostura}T00:00:00`) : new Date();
+
+  if (destino === "choc") {
+    status = "Incubando";
+    const eclosao = new Date(baseDate);
+    eclosao.setDate(eclosao.getDate() + 21);
+    eclosaoPrevista = eclosao.toISOString().split("T")[0];
+  } else if (destino === "reservado") {
+    status = "Reservado";
+  } else if (destino === "descarte") {
+    status = "Descartado";
+  }
+
+  const codigo = await nextCodigo(supabase, "lotes_postura", "L", 4);
+
+  const { error } = await supabase.from("lotes_postura").insert({
+    codigo,
+    baia_id: baiaId,
+    quantidade,
+    preco_unit: precoUnit,
+    destino,
+    status,
+    eclosao_prevista: eclosaoPrevista,
+    ...(dataPostura ? { data_postura: dataPostura } : {}),
+  });
+
+  if (error) return { error: error.message };
+  revalidateGestaoPaths();
+  return { error: null };
+}

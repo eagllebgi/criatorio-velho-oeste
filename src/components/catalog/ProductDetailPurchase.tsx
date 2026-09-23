@@ -26,6 +26,7 @@ export function ProductDetailPurchase({ product }: { product: Product }) {
         price: product.price,
         image: product.mainImage,
         stock: product.stock,
+        productType: product.productType,
       },
       quantity,
     );

@@ -41,6 +41,7 @@ export const siteConfig = {
   nav: [
     { label: "Início", href: "/" },
     { label: "Ovos Férteis", href: "/ovos" },
+    { label: "Aves Vivas", href: "/aves" },
     { label: "Sobre o Criatório", href: "/#sobre" },
     { label: "Como Funciona", href: "/#como-funciona" },
     { label: "Dúvidas", href: "/#duvidas" },

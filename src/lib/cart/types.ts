@@ -6,4 +6,5 @@ export interface CartItem {
   image: string | null;
   quantity: number;
   stock: number;
+  productType: "ovo" | "ave";
 }

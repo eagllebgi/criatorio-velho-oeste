@@ -32,6 +32,9 @@ export function ProductCard({
   const status = getStockStatus(product);
   const isOut = status.level === "out";
 
+  const isAve = product.productType === "ave";
+  const detailHref = `${isAve ? "/aves" : "/ovos"}/${product.slug}`;
+
   function handleAdd() {
     addItem(
       {
@@ -41,6 +44,7 @@ export function ProductCard({
         price: product.price,
         image: mainImage,
         stock: product.stock,
+        productType: product.productType,
       },
       quantity,
     );
@@ -80,7 +84,7 @@ export function ProductCard({
           </span>
         )}
         <h3 className="line-clamp-2 font-serif text-base font-semibold text-brand-ink sm:text-lg">
-          <Link href={`/ovos/${product.slug}`} className="hover:text-brand-green">
+          <Link href={detailHref} className="hover:text-brand-green">
             {product.name}
           </Link>
         </h3>
@@ -94,7 +98,9 @@ export function ProductCard({
           <span className="text-base font-semibold text-brand-green sm:text-lg">
             {formatBRL(product.price)}
           </span>
-          {product.price !== null && <span className="text-xs text-brand-ink/50">/ ovo</span>}
+          {product.price !== null && (
+            <span className="text-xs text-brand-ink/50">/ {isAve ? "ave" : "ovo"}</span>
+          )}
         </div>
 
         {/* O preço continua visível pra todo mundo, normal — só o admin logado

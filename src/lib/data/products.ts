@@ -1,7 +1,7 @@
 import { unstable_rethrow } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { mapCategory, mapProduct } from "@/lib/data/mappers";
-import type { Category, Product } from "@/lib/types/domain";
+import type { Category, Product, ProductType } from "@/lib/types/domain";
 
 const PRODUCT_SELECT = `
   *,
@@ -24,17 +24,21 @@ async function safeQuery<T>(label: string, run: () => Promise<T>, fallback: T): 
   }
 }
 
-/** Todos os produtos ativos, para a página /ovos. */
-export async function getActiveProducts(): Promise<Product[]> {
+/** Produtos ativos, para as páginas /ovos e /aves. Sem "type", traz os dois. */
+export async function getActiveProducts(type?: ProductType): Promise<Product[]> {
   return safeQuery(
     "getActiveProducts",
     async () => {
       const supabase = await createClient();
-      const { data, error } = await supabase
+      let query = supabase
         .from("products")
         .select(PRODUCT_SELECT)
         .eq("active", true)
         .order("display_order", { ascending: true });
+
+      if (type) query = query.eq("product_type", type);
+
+      const { data, error } = await query;
 
       if (error) throw error;
       return (data ?? []).map(mapProduct);

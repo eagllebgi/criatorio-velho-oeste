@@ -13,16 +13,16 @@ import { siteConfig } from "@/lib/config/site";
 import { getAdminUser } from "@/lib/supabase/server";
 
 export async function generateMetadata(
-  props: PageProps<"/ovos/[slug]">,
+  props: PageProps<"/aves/[slug]">,
 ): Promise<Metadata> {
   const { slug } = await props.params;
   const product = await getProductBySlug(slug);
-  if (!product) return {};
+  if (!product || product.productType !== "ave") return {};
 
-  const title = `${product.name} — Ovos Férteis`;
+  const title = `${product.name} — Ave Viva`;
   const description =
     product.shortDescription ??
-    `Ovos férteis de ${product.name}, disponíveis no ${siteConfig.name}.`;
+    `Ave viva de ${product.name}, disponível no ${siteConfig.name}.`;
 
   return {
     title,
@@ -35,14 +35,14 @@ export async function generateMetadata(
   };
 }
 
-export default async function ProductPage(props: PageProps<"/ovos/[slug]">) {
+export default async function AvePage(props: PageProps<"/aves/[slug]">) {
   const { slug } = await props.params;
   const [product, adminUser] = await Promise.all([
     getProductBySlug(slug),
     getAdminUser(),
   ]);
 
-  if (!product || product.productType !== "ovo") notFound();
+  if (!product || product.productType !== "ave") notFound();
   const isAdmin = Boolean(adminUser);
 
   const jsonLd = {
@@ -73,8 +73,8 @@ export default async function ProductPage(props: PageProps<"/ovos/[slug]">) {
           Início
         </Link>
         <ChevronRight className="h-3 w-3" aria-hidden="true" />
-        <Link href="/ovos" className="hover:text-brand-ink">
-          Ovos Férteis
+        <Link href="/aves" className="hover:text-brand-ink">
+          Aves Vivas
         </Link>
         <ChevronRight className="h-3 w-3" aria-hidden="true" />
         <span className="text-brand-ink/80">{product.name}</span>
@@ -104,16 +104,11 @@ export default async function ProductPage(props: PageProps<"/ovos/[slug]">) {
               {formatBRL(product.price)}
             </span>
             {product.price !== null && (
-              <span className="text-sm text-brand-ink/50">/ ovo</span>
+              <span className="text-sm text-brand-ink/50">/ ave</span>
             )}
           </div>
 
-          {/* O preço continua visível pra todo mundo, normal — só o admin
-              logado ganha um campo pra editar esse mesmo preço na hora. */}
           {isAdmin && <AdminPriceControl productId={product.id} price={product.price} />}
-
-          {/* Quantidade exata em estoque é informação interna — só o admin
-              logado vê e edita direto aqui; o cliente só vê o selo acima. */}
           {isAdmin && <AdminStockControl productId={product.id} stock={product.stock} />}
 
           {(product.description || product.shortDescription) && (

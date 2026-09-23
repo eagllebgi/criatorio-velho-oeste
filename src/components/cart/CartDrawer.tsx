@@ -65,11 +65,11 @@ export function CartDrawer() {
           <div className="flex flex-1 flex-col items-center justify-center gap-4 px-6 text-center">
             <ShoppingBasket className="h-10 w-10 text-brand-brown/40" aria-hidden="true" />
             <p className="text-sm text-brand-ink/60">
-              Seu pedido está vazio. Escolha as raças que deseja e adicione
-              aqui.
+              Seu pedido está vazio. Escolha os ovos ou aves que deseja e
+              adicione aqui.
             </p>
             <Button href="/ovos" onClick={closeDrawer}>
-              Ver ovos disponíveis
+              Ver disponíveis
             </Button>
           </div>
         ) : (
@@ -82,7 +82,7 @@ export function CartDrawer() {
 
             <div className="space-y-4 border-t border-brand-sand px-5 py-5">
               <div className="flex items-center justify-between text-sm">
-                <span className="text-brand-ink/70">Subtotal dos ovos</span>
+                <span className="text-brand-ink/70">Subtotal do pedido</span>
                 <span className="text-base font-semibold text-brand-ink">
                   {formatBRL(subtotal)}
                 </span>

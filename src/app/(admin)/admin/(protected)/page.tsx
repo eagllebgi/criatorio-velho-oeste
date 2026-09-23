@@ -1,6 +1,16 @@
 import Link from "next/link";
-import { Egg, CheckCircle2, XCircle, AlertTriangle } from "lucide-react";
+import {
+  Egg,
+  CheckCircle2,
+  XCircle,
+  AlertTriangle,
+  Wallet,
+  TrendingUp,
+  Bird,
+} from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { getFinanceiroMesAdmin } from "@/lib/data/admin";
+import { formatBRL } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -28,7 +38,15 @@ async function getDashboardStats() {
 }
 
 export default async function AdminDashboardPage() {
-  const stats = await getDashboardStats();
+  const [stats, financeiroMes] = await Promise.all([getDashboardStats(), getFinanceiroMesAdmin()]);
+
+  const vendasDoMes = financeiroMes
+    .filter((f) => f.tipo === "entrada")
+    .reduce((sum, f) => sum + f.valor, 0);
+  const gastosDoMes = financeiroMes
+    .filter((f) => f.tipo === "saida")
+    .reduce((sum, f) => sum + f.valor, 0);
+  const caixaDoMes = vendasDoMes - gastosDoMes;
 
   const cards = [
     {
@@ -61,8 +79,41 @@ export default async function AdminDashboardPage() {
     <div>
       <h1 className="font-serif text-2xl font-semibold text-brand-ink">Dashboard</h1>
       <p className="mt-1 text-sm text-brand-ink/60">
-        Visão geral do catálogo do Criatório Velho Oeste.
+        Visão geral do catálogo e da produção do Criatório Velho Oeste.
       </p>
+
+      <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <Link
+          href="/admin/financeiro"
+          className="rounded-2xl border border-brand-sand/70 bg-white p-5 hover:border-brand-green/50"
+        >
+          <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-brand-green/10 text-brand-green">
+            <Wallet className="h-5 w-5" aria-hidden="true" />
+          </span>
+          <p className="mt-4 text-2xl font-semibold text-brand-ink">{formatBRL(caixaDoMes)}</p>
+          <p className="text-sm text-brand-ink/60">Caixa do mês</p>
+        </Link>
+        <Link
+          href="/admin/financeiro"
+          className="rounded-2xl border border-brand-sand/70 bg-white p-5 hover:border-brand-green/50"
+        >
+          <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-emerald-50 text-emerald-700">
+            <TrendingUp className="h-5 w-5" aria-hidden="true" />
+          </span>
+          <p className="mt-4 text-2xl font-semibold text-brand-ink">{formatBRL(vendasDoMes)}</p>
+          <p className="text-sm text-brand-ink/60">Vendas do mês</p>
+        </Link>
+        <Link
+          href="/admin/aves"
+          className="rounded-2xl border border-brand-sand/70 bg-white p-5 hover:border-brand-green/50"
+        >
+          <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-brand-gold/15 text-brand-brown-dark">
+            <Bird className="h-5 w-5" aria-hidden="true" />
+          </span>
+          <p className="mt-4 text-2xl font-semibold text-brand-ink">Plantel</p>
+          <p className="text-sm text-brand-ink/60">Ver baias, aves e posturas</p>
+        </Link>
+      </div>
 
       <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {cards.map((card) => (
@@ -102,9 +153,9 @@ export default async function AdminDashboardPage() {
           href="/admin/produtos/novo"
           className="rounded-2xl border border-brand-sand/70 bg-white p-5 hover:border-brand-green/50"
         >
-          <h2 className="font-serif text-lg font-semibold text-brand-ink">Cadastrar nova raça</h2>
+          <h2 className="font-serif text-lg font-semibold text-brand-ink">Cadastrar novo item</h2>
           <p className="mt-1 text-sm text-brand-ink/60">
-            Adicione uma nova raça ao catálogo sem mexer em código.
+            Adicione um ovo fértil ou ave viva ao catálogo sem mexer em código.
           </p>
         </Link>
       </div>

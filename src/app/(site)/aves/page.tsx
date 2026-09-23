@@ -5,14 +5,14 @@ import { getActiveCategories, getActiveProducts } from "@/lib/data/products";
 import { getAdminUser } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
-  title: "Ovos Férteis",
+  title: "Aves Vivas",
   description:
-    "Confira os ovos férteis disponíveis atualmente no Criatório Velho Oeste e monte seu pedido pelo WhatsApp.",
+    "Confira as aves vivas disponíveis atualmente no Criatório Velho Oeste e monte seu pedido pelo WhatsApp.",
 };
 
-export default async function OvosPage() {
+export default async function AvesPage() {
   const [products, categories, adminUser] = await Promise.all([
-    getActiveProducts("ovo"),
+    getActiveProducts("ave"),
     getActiveCategories(),
     getAdminUser(),
   ]);
@@ -22,19 +22,20 @@ export default async function OvosPage() {
     <div className="container-site py-14">
       <div className="mb-10 max-w-2xl">
         <h1 className="font-serif text-3xl font-semibold text-brand-ink sm:text-4xl">
-          Ovos Férteis Disponíveis
+          Aves Vivas Disponíveis
         </h1>
         <p className="mt-3 text-sm text-brand-ink/60 sm:text-base">
-          A disponibilidade varia conforme a produção do criatório. Escolha
+          A disponibilidade varia conforme o plantel do criatório. Escolha
           as raças desejadas, informe as quantidades e finalize seu pedido
-          pelo WhatsApp.
+          pelo WhatsApp — o envio ou a retirada é combinado diretamente com
+          a gente.
         </p>
       </div>
 
       {products.length === 0 ? (
         <EmptyState
-          title="Novos ovos estarão disponíveis em breve"
-          description="No momento não há ovos férteis cadastrados no catálogo. Fale com a gente para consultar a disponibilidade."
+          title="Novas aves estarão disponíveis em breve"
+          description="No momento não há aves vivas cadastradas no catálogo. Fale com a gente para consultar a disponibilidade."
           showWhatsApp
         />
       ) : (

@@ -70,7 +70,14 @@ export function AdminProductTable({ products }: { products: Product[] }) {
                 <td className="px-4 py-3">
                   <PhotoCell productId={product.id} name={product.name} mainImage={product.mainImage} />
                 </td>
-                <td className="px-4 py-3 font-medium text-brand-ink">{product.name}</td>
+                <td className="px-4 py-3">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium text-brand-ink">{product.name}</span>
+                    <Badge tone={product.productType === "ave" ? "gold" : "neutral"}>
+                      {product.productType === "ave" ? "Ave" : "Ovo"}
+                    </Badge>
+                  </div>
+                </td>
                 <td className="px-4 py-3 text-brand-ink/70">
                   {product.categoryName ?? "—"}
                 </td>
@@ -138,7 +145,12 @@ export function AdminProductTable({ products }: { products: Product[] }) {
               <div className="min-w-0 flex-1">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
-                    <p className="truncate font-medium text-brand-ink">{product.name}</p>
+                    <div className="flex items-center gap-1.5">
+                      <p className="truncate font-medium text-brand-ink">{product.name}</p>
+                      <Badge tone={product.productType === "ave" ? "gold" : "neutral"} className="shrink-0">
+                        {product.productType === "ave" ? "Ave" : "Ovo"}
+                      </Badge>
+                    </div>
                     <p className="truncate text-xs text-brand-ink/50">
                       {product.categoryName ?? "Sem categoria"}
                     </p>

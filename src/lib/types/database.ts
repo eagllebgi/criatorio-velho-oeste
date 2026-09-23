@@ -52,6 +52,7 @@ export interface Database {
           active: boolean;
           featured: boolean;
           display_order: number;
+          product_type: "ovo" | "ave";
           created_at: string;
           updated_at: string;
         };
@@ -69,6 +70,7 @@ export interface Database {
           active?: boolean;
           featured?: boolean;
           display_order?: number;
+          product_type?: "ovo" | "ave";
           created_at?: string;
           updated_at?: string;
         };
@@ -109,6 +111,182 @@ export interface Database {
           },
         ];
       };
+      financeiro: {
+        Row: {
+          id: string;
+          tipo: "entrada" | "saida";
+          descricao: string;
+          categoria: string | null;
+          valor: number;
+          data: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          tipo: "entrada" | "saida";
+          descricao: string;
+          categoria?: string | null;
+          valor: number;
+          data?: string;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["financeiro"]["Insert"]>;
+        Relationships: [];
+      };
+      baias: {
+        Row: {
+          id: string;
+          codigo: string;
+          numero: string;
+          nome: string;
+          especie: string;
+          setor: string | null;
+          status: "Reprodução" | "Ativa" | "Inativa";
+          preco_ovo: number | null;
+          destino_padrao: "venda" | "choc" | "reservado" | "descarte";
+          observacoes: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          codigo: string;
+          numero: string;
+          nome: string;
+          especie: string;
+          setor?: string | null;
+          status?: "Reprodução" | "Ativa" | "Inativa";
+          preco_ovo?: number | null;
+          destino_padrao?: "venda" | "choc" | "reservado" | "descarte";
+          observacoes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["baias"]["Insert"]>;
+        Relationships: [];
+      };
+      baia_observacoes: {
+        Row: {
+          id: string;
+          baia_id: string;
+          texto: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          baia_id: string;
+          texto: string;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["baia_observacoes"]["Insert"]>;
+        Relationships: [
+          {
+            foreignKeyName: "baia_observacoes_baia_id_fkey";
+            columns: ["baia_id"];
+            isOneToOne: false;
+            referencedRelation: "baias";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      aves: {
+        Row: {
+          id: string;
+          codigo: string;
+          baia_id: string | null;
+          nome: string;
+          emoji: string;
+          sexo: "Macho" | "Fêmea" | "Casal" | "Indefinido";
+          status:
+            | "Filhote"
+            | "Disponível"
+            | "Reprodutor"
+            | "Macho reprodutor"
+            | "Fêmea reprodutora"
+            | "Matriz"
+            | "Reservado"
+            | "Vendido"
+            | "Separado"
+            | "Óbito";
+          data_nascimento: string | null;
+          observacoes: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          codigo: string;
+          baia_id?: string | null;
+          nome: string;
+          emoji?: string;
+          sexo?: "Macho" | "Fêmea" | "Casal" | "Indefinido";
+          status?:
+            | "Filhote"
+            | "Disponível"
+            | "Reprodutor"
+            | "Macho reprodutor"
+            | "Fêmea reprodutora"
+            | "Matriz"
+            | "Reservado"
+            | "Vendido"
+            | "Separado"
+            | "Óbito";
+          data_nascimento?: string | null;
+          observacoes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["aves"]["Insert"]>;
+        Relationships: [
+          {
+            foreignKeyName: "aves_baia_id_fkey";
+            columns: ["baia_id"];
+            isOneToOne: false;
+            referencedRelation: "baias";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      lotes_postura: {
+        Row: {
+          id: string;
+          codigo: string;
+          baia_id: string;
+          quantidade: number;
+          preco_unit: number | null;
+          data_postura: string;
+          destino: "venda" | "choc" | "reservado" | "descarte";
+          status: "Disponível" | "Incubando" | "Reservado" | "Vendido" | "Concluído" | "Descartado";
+          eclosao_prevista: string | null;
+          lote_origem_id: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          codigo: string;
+          baia_id: string;
+          quantidade: number;
+          preco_unit?: number | null;
+          data_postura?: string;
+          destino?: "venda" | "choc" | "reservado" | "descarte";
+          status?: "Disponível" | "Incubando" | "Reservado" | "Vendido" | "Concluído" | "Descartado";
+          eclosao_prevista?: string | null;
+          lote_origem_id?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["lotes_postura"]["Insert"]>;
+        Relationships: [
+          {
+            foreignKeyName: "lotes_postura_baia_id_fkey";
+            columns: ["baia_id"];
+            isOneToOne: false;
+            referencedRelation: "baias";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
@@ -121,3 +299,10 @@ export type CategoryRow = Database["public"]["Tables"]["categories"]["Row"];
 export type ProductRow = Database["public"]["Tables"]["products"]["Row"];
 export type ProductImageRow =
   Database["public"]["Tables"]["product_images"]["Row"];
+export type FinanceiroRow = Database["public"]["Tables"]["financeiro"]["Row"];
+export type BaiaRow = Database["public"]["Tables"]["baias"]["Row"];
+export type BaiaObservacaoRow =
+  Database["public"]["Tables"]["baia_observacoes"]["Row"];
+export type AveRow = Database["public"]["Tables"]["aves"]["Row"];
+export type LotePosturaRow =
+  Database["public"]["Tables"]["lotes_postura"]["Row"];

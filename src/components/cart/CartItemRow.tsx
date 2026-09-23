@@ -38,7 +38,9 @@ export function CartItemRow({ item }: { item: CartItem }) {
         </div>
 
         <span className="text-xs text-brand-ink/60">
-          {item.price !== null ? `${formatBRL(item.price)} / ovo` : "Preço a confirmar"}
+          {item.price !== null
+            ? `${formatBRL(item.price)} / ${item.productType === "ave" ? "ave" : "ovo"}`
+            : "Preço a confirmar"}
         </span>
 
         <div className="mt-2 flex items-center justify-between">

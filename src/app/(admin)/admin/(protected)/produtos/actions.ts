@@ -20,6 +20,7 @@ function parseProductForm(formData: FormData) {
   const displayOrderRaw = String(formData.get("display_order") ?? "0").trim();
   const active = formData.get("active") === "on";
   const featured = formData.get("featured") === "on";
+  const productType = String(formData.get("product_type") ?? "ovo") === "ave" ? "ave" : "ovo";
 
   return {
     name,
@@ -32,6 +33,7 @@ function parseProductForm(formData: FormData) {
     display_order: Number(displayOrderRaw) || 0,
     active,
     featured,
+    product_type: productType as "ovo" | "ave",
   };
 }
 
@@ -55,6 +57,7 @@ export async function createProduct(
 
   revalidatePath("/admin/produtos");
   revalidatePath("/ovos");
+  revalidatePath("/aves");
   redirect("/admin/produtos");
 }
 
@@ -76,7 +79,9 @@ export async function updateProduct(
 
   revalidatePath("/admin/produtos");
   revalidatePath("/ovos");
+  revalidatePath("/aves");
   revalidatePath(`/ovos/${slugify(values.name)}`);
+  revalidatePath(`/aves/${slugify(values.name)}`);
   redirect("/admin/produtos");
 }
 
@@ -85,6 +90,7 @@ export async function toggleProductActive(productId: string, nextActive: boolean
   await supabase.from("products").update({ active: nextActive }).eq("id", productId);
   revalidatePath("/admin/produtos");
   revalidatePath("/ovos");
+  revalidatePath("/aves");
 }
 
 export async function toggleProductFeatured(productId: string, nextFeatured: boolean) {
@@ -104,4 +110,5 @@ export async function deleteProduct(productId: string) {
   await supabase.from("products").delete().eq("id", productId);
   revalidatePath("/admin/produtos");
   revalidatePath("/ovos");
+  revalidatePath("/aves");
 }

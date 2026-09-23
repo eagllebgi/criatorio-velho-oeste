@@ -11,18 +11,27 @@ export function getCartSubtotal(items: CartItem[]): number {
   return items.reduce((sum, item) => sum + (itemSubtotal(item) ?? 0), 0);
 }
 
+function unitLabel(item: CartItem): string {
+  if (item.productType === "ave") return item.quantity === 1 ? "ave" : "aves";
+  return item.quantity === 1 ? "ovo" : "ovos";
+}
+
+function itemEmoji(item: CartItem): string {
+  return item.productType === "ave" ? "🐔" : "🥚";
+}
+
 export function buildOrderMessage(items: CartItem[], cep: string): string {
   const lines: string[] = [];
 
   lines.push(
-    `Olá! Vim pelo site do ${siteConfig.name} e gostaria de solicitar estes ovos férteis:`,
+    `Olá! Vim pelo site do ${siteConfig.name} e gostaria de solicitar estes itens:`,
   );
   lines.push("");
 
   for (const item of items) {
     const subtotal = itemSubtotal(item);
-    lines.push(`🥚 ${item.name}`);
-    lines.push(`Quantidade: ${item.quantity} ovos`);
+    lines.push(`${itemEmoji(item)} ${item.name}`);
+    lines.push(`Quantidade: ${item.quantity} ${unitLabel(item)}`);
     lines.push(
       `Valor unitário: ${item.price !== null ? formatBRL(item.price) : "a confirmar"}`,
     );
@@ -38,7 +47,7 @@ export function buildOrderMessage(items: CartItem[], cep: string): string {
     lines.push("");
   }
 
-  lines.push("💰 Subtotal dos ovos:");
+  lines.push("💰 Subtotal do pedido:");
   lines.push(formatBRL(getCartSubtotal(items)));
   lines.push("");
   lines.push("Gostaria de confirmar a disponibilidade e o valor do envio.");

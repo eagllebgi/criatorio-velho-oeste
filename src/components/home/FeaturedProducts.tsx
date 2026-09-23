@@ -23,7 +23,7 @@ export function FeaturedProducts({
           </h2>
         </div>
         <Button href="/ovos" variant="outline">
-          Ver todos os ovos
+          Ver catálogo completo
         </Button>
       </div>
 
