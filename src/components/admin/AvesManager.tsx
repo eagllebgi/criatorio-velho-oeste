@@ -1,18 +1,24 @@
 "use client";
 
+import Image from "next/image";
 import { useActionState, useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { Pencil, Plus, Search, Trash2 } from "lucide-react";
+import { Loader2, LogOut, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import type { Ave, AveStatus, Baia } from "@/lib/types/domain";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Sheet } from "@/components/ui/Sheet";
 import { cn } from "@/lib/utils";
+import { createClient } from "@/lib/supabase/client";
+import { buildAveImagePath } from "@/lib/storage";
 import {
   createAve,
+  darBaixaPorAnilha,
   deleteAve,
   updateAve,
   type FormState,
 } from "@/app/(admin)/admin/(protected)/aves/actions";
+
+const BUCKET = "product-images";
 
 const initialState: FormState = { error: null };
 
@@ -50,6 +56,7 @@ export function AvesManager({ aves, baias }: { aves: Ave[]; baias: Baia[] }) {
   const [search, setSearch] = useState("");
   const [novaOpen, setNovaOpen] = useState(false);
   const [editing, setEditing] = useState<Ave | null>(null);
+  const [baixaOpen, setBaixaOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   const filtered = useMemo(() => {
@@ -87,10 +94,16 @@ export function AvesManager({ aves, baias }: { aves: Ave[]; baias: Baia[] }) {
             className="w-full rounded-full border border-brand-sand bg-white py-2.5 pl-10 pr-4 text-sm text-brand-ink outline-none focus:border-brand-green focus:ring-1 focus:ring-brand-green"
           />
         </div>
-        <Button onClick={() => setNovaOpen(true)}>
-          <Plus className="h-4 w-4" aria-hidden="true" />
-          Nova ave
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setBaixaOpen(true)}>
+            <LogOut className="h-4 w-4" aria-hidden="true" />
+            Dar baixa
+          </Button>
+          <Button onClick={() => setNovaOpen(true)}>
+            <Plus className="h-4 w-4" aria-hidden="true" />
+            Nova ave
+          </Button>
+        </div>
       </div>
 
       <div className="mt-4 flex flex-wrap gap-2">
@@ -121,13 +134,12 @@ export function AvesManager({ aves, baias }: { aves: Ave[]; baias: Baia[] }) {
             <div key={ave.id} className="rounded-2xl border border-brand-sand/70 bg-white p-4">
               <div className="flex items-start justify-between gap-2">
                 <div className="flex min-w-0 items-center gap-2.5">
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-cream-dark/50 text-lg">
-                    {ave.emoji}
-                  </span>
+                  <AveFotoAvatar ave={ave} />
                   <div className="min-w-0">
                     <p className="truncate font-medium text-brand-ink">{ave.nome}</p>
                     <p className="truncate text-xs text-brand-ink/50">
                       {ave.codigo}
+                      {ave.anilha ? ` · Anilha ${ave.anilha}` : ""}
                       {ave.baiaNome ? ` · ${ave.baiaNome}` : ""}
                     </p>
                   </div>
@@ -174,7 +186,175 @@ export function AvesManager({ aves, baias }: { aves: Ave[]; baias: Baia[] }) {
           action={updateAve.bind(null, editing.id)}
         />
       )}
+
+      {baixaOpen && <BaixaSheet onClose={() => setBaixaOpen(false)} />}
     </div>
+  );
+}
+
+/** Avatar clicável: clica na foto (ou no emoji, se ainda não tiver foto) pra
+ * trocar por uma foto da própria ave/espécie. Mesmo padrão de upload direto
+ * pelo navegador do PhotoCell de Produtos (AdminProductTable.tsx). */
+function AveFotoAvatar({ ave }: { ave: Ave }) {
+  const [preview, setPreview] = useState<string | null>(ave.fotoUrl);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  async function handleFile(files: FileList | null) {
+    const file = files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    setError(null);
+    const supabase = createClient();
+
+    try {
+      const path = buildAveImagePath(ave.id, file.name);
+      const { error: uploadError } = await supabase.storage
+        .from(BUCKET)
+        .upload(path, file, { upsert: false });
+      if (uploadError) throw uploadError;
+
+      const { data: publicUrlData } = supabase.storage.from(BUCKET).getPublicUrl(path);
+      const url = publicUrlData.publicUrl;
+
+      const { error: updateError } = await supabase
+        .from("aves")
+        .update({ foto_url: url })
+        .eq("id", ave.id);
+      if (updateError) throw updateError;
+
+      setPreview(url);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Não foi possível enviar a foto.");
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
+
+  return (
+    <label
+      title="Clique para trocar a foto"
+      className="group relative flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-full bg-brand-cream-dark/50 text-lg"
+    >
+      {preview ? (
+        <Image src={preview} alt={ave.nome} fill sizes="40px" className="object-cover" />
+      ) : (
+        <span>{ave.emoji}</span>
+      )}
+      <div className="absolute inset-0 flex items-center justify-center bg-black/0 transition-colors group-hover:bg-black/30">
+        {uploading ? (
+          <Loader2 className="h-3.5 w-3.5 animate-spin text-white" aria-hidden="true" />
+        ) : (
+          <Pencil
+            className="h-3 w-3 text-white opacity-0 transition-opacity group-hover:opacity-100"
+            aria-hidden="true"
+          />
+        )}
+      </div>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        className="sr-only"
+        onChange={(e) => handleFile(e.target.files)}
+      />
+      {error && (
+        <span className="absolute left-1/2 top-full z-10 mt-1 w-max max-w-[9rem] -translate-x-1/2 rounded-md bg-red-600 px-2 py-1 text-[0.65rem] text-white">
+          {error}
+        </span>
+      )}
+    </label>
+  );
+}
+
+/** Dá baixa numa ave só com o número da anilha — sem precisar abrir o
+ * cadastro completo. A baixa já reflete sozinha na contagem da baia (ver
+ * mapBaia) e some das listagens de "disponíveis". */
+function BaixaSheet({ onClose }: { onClose: () => void }) {
+  const [anilha, setAnilha] = useState("");
+  const [motivo, setMotivo] = useState<"Vendido" | "Óbito">("Vendido");
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  function handleSave() {
+    setError(null);
+    setSuccess(null);
+    startTransition(async () => {
+      const result = await darBaixaPorAnilha(anilha, motivo);
+      if (result.error) {
+        setError(result.error);
+      } else {
+        setSuccess(`Baixa registrada: "${result.aveNome}" — ${motivo}.`);
+        setAnilha("");
+      }
+    });
+  }
+
+  return (
+    <Sheet
+      open
+      onClose={onClose}
+      title="Dar baixa por anilha"
+      footer={
+        <button
+          type="button"
+          disabled={isPending || !anilha.trim()}
+          onClick={handleSave}
+          className="w-full rounded-full bg-brand-green px-6 py-2.5 text-sm font-medium text-brand-cream hover:bg-brand-green-dark disabled:opacity-60"
+        >
+          {isPending ? "Registrando..." : "Registrar baixa"}
+        </button>
+      }
+    >
+      <p className="text-sm text-brand-ink/60">
+        Informe a anilha da ave. A baixa é feita em todo lugar automaticamente — sai da contagem
+        da baia e do plantel disponível.
+      </p>
+
+      <div className="mt-4">
+        <label htmlFor="baixa-anilha" className="block text-sm font-medium text-brand-ink">
+          Nº da anilha
+        </label>
+        <input
+          id="baixa-anilha"
+          type="text"
+          autoFocus
+          value={anilha}
+          onChange={(e) => {
+            setAnilha(e.target.value);
+            setSuccess(null);
+          }}
+          placeholder="Ex: BR 1234"
+          className={inputClass}
+        />
+      </div>
+
+      <div className="mt-4">
+        <label htmlFor="baixa-motivo" className="block text-sm font-medium text-brand-ink">
+          Motivo
+        </label>
+        <select
+          id="baixa-motivo"
+          value={motivo}
+          onChange={(e) => setMotivo(e.target.value as "Vendido" | "Óbito")}
+          className={inputClass}
+        >
+          <option value="Vendido">Vendido</option>
+          <option value="Óbito">Óbito</option>
+        </select>
+      </div>
+
+      {error && (
+        <p role="alert" className="mt-3 text-sm text-red-600">
+          {error}
+        </p>
+      )}
+      {success && <p className="mt-3 text-sm text-brand-green">{success}</p>}
+    </Sheet>
   );
 }
 
@@ -234,6 +414,20 @@ function AveFormSheet({
             autoFocus
             placeholder="Ex: Angola macho grande"
             defaultValue={ave?.nome}
+            className={inputClass}
+          />
+        </div>
+
+        <div>
+          <label htmlFor="anilha" className="block text-sm font-medium text-brand-ink">
+            Nº da anilha (opcional)
+          </label>
+          <input
+            id="anilha"
+            name="anilha"
+            type="text"
+            placeholder="Ex: BR 1234"
+            defaultValue={ave?.anilha ?? ""}
             className={inputClass}
           />
         </div>

@@ -11,6 +11,11 @@ export interface FormState {
 
 function revalidateGestaoPaths() {
   revalidatePath("/admin/baias");
+  // Plantel (/admin/aves) mostra o nome da baia de cada ave (relação
+  // aves.baia_id -> baias.nome) e a baixa por status também afeta a
+  // contagem exibida nos cards de baia — mantém as duas telas sempre em dia
+  // uma com a outra, sem precisar de reload manual.
+  revalidatePath("/admin/aves");
   revalidatePath("/admin/postura");
   revalidatePath("/admin");
 }

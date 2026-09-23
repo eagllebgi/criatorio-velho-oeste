@@ -78,11 +78,14 @@ export function mapFinanceiro(row: FinanceiroRow): Financeiro {
 }
 
 type BaiaRowWithRelations = BaiaRow & {
-  aves: { sexo: Ave["sexo"] }[] | null;
+  aves: { sexo: Ave["sexo"]; status: Ave["status"] }[] | null;
 };
 
 export function mapBaia(row: BaiaRowWithRelations): Baia {
-  const aves = row.aves ?? [];
+  // Aves com baixa dada (Vendido/Óbito) não contam mais como parte do
+  // plantel ativo da baia — a baixa por anilha propaga pra cá automaticamente,
+  // sem precisar desvincular a ave manualmente.
+  const aves = (row.aves ?? []).filter((a) => a.status !== "Vendido" && a.status !== "Óbito");
   return {
     id: row.id,
     codigo: row.codigo,
@@ -94,6 +97,7 @@ export function mapBaia(row: BaiaRowWithRelations): Baia {
     precoOvo: row.preco_ovo,
     destinoPadrao: row.destino_padrao,
     observacoes: row.observacoes,
+    fotoUrl: row.foto_url,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     totalAves: aves.length,
@@ -123,10 +127,12 @@ export function mapAve(row: AveRowWithRelations): Ave {
     baiaNome: row.baias?.nome ?? null,
     nome: row.nome,
     emoji: row.emoji,
+    anilha: row.anilha,
     sexo: row.sexo,
     status: row.status,
     dataNascimento: row.data_nascimento,
     observacoes: row.observacoes,
+    fotoUrl: row.foto_url,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };

@@ -145,6 +145,7 @@ export interface Database {
           preco_ovo: number | null;
           destino_padrao: "venda" | "choc" | "reservado" | "descarte";
           observacoes: string | null;
+          foto_url: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -159,6 +160,7 @@ export interface Database {
           preco_ovo?: number | null;
           destino_padrao?: "venda" | "choc" | "reservado" | "descarte";
           observacoes?: string | null;
+          foto_url?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -208,8 +210,10 @@ export interface Database {
             | "Vendido"
             | "Separado"
             | "Óbito";
+          anilha: string | null;
           data_nascimento: string | null;
           observacoes: string | null;
+          foto_url: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -231,8 +235,10 @@ export interface Database {
             | "Vendido"
             | "Separado"
             | "Óbito";
+          anilha?: string | null;
           data_nascimento?: string | null;
           observacoes?: string | null;
+          foto_url?: string | null;
           created_at?: string;
           updated_at?: string;
         };

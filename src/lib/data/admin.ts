@@ -106,7 +106,7 @@ export async function getFinanceiroMesAdmin(month?: string): Promise<Financeiro[
 
 // ── Gestão interna: baias ────────────────────────────────────────────────
 
-const BAIA_SELECT = `*, aves ( sexo )`;
+const BAIA_SELECT = `*, aves ( sexo, status )`;
 
 /** Número da baia pode ser só dígitos ("1", "23") ou dígitos + letra ("1A",
  * "2A") — as baias aéreas de filhotada, por exemplo. Pra ordenar como uma

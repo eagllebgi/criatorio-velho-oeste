@@ -73,10 +73,14 @@ export interface Baia {
   precoOvo: number | null;
   destinoPadrao: Destino;
   observacoes: string | null;
+  /** Foto customizada da baia/espécie (enviada pelo usuário). Quando null,
+   * os cards caem no emoji padrão da espécie (emojiForEspecie). */
+  fotoUrl: string | null;
   createdAt: string;
   updatedAt: string;
   /** Quantidade de aves atualmente vinculadas a essa baia — calculada a
-   * partir da tabela `aves`, sempre em dia com o plantel real. */
+   * partir da tabela `aves`, sempre em dia com o plantel real. Aves com
+   * status "Vendido" ou "Óbito" (baixa dada) não entram nessa contagem. */
   totalAves: number;
   machos: number;
   femeas: number;
@@ -109,10 +113,15 @@ export interface Ave {
   baiaNome: string | null;
   nome: string;
   emoji: string;
+  /** Nº da anilha (identificação física individual), quando cadastrado. */
+  anilha: string | null;
   sexo: AveSexo;
   status: AveStatus;
   dataNascimento: string | null;
   observacoes: string | null;
+  /** Foto customizada da ave/espécie (enviada pelo usuário). Quando null,
+   * os cards caem no emoji padrão. */
+  fotoUrl: string | null;
   createdAt: string;
   updatedAt: string;
 }
