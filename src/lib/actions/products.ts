@@ -25,11 +25,11 @@ async function requireAdmin(
 
 function revalidateProductPaths() {
   revalidatePath("/admin/produtos");
-  revalidatePath("/admin/estoque");
-  revalidatePath("/admin/precos");
   revalidatePath("/admin");
   revalidatePath("/ovos");
   revalidatePath("/ovos/[slug]", "page");
+  revalidatePath("/aves");
+  revalidatePath("/aves/[slug]", "page");
   revalidatePath("/");
 }
 

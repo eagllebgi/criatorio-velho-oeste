@@ -2,13 +2,14 @@
 
 import { useActionState, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { ArrowDownCircle, ArrowUpCircle, Trash2, Wallet } from "lucide-react";
-import type { Financeiro } from "@/lib/types/domain";
+import type { Financeiro, Product } from "@/lib/types/domain";
 import { cn, formatBRL } from "@/lib/utils";
 import {
   createTransacao,
   deleteTransacao,
   type FinanceiroFormState,
 } from "@/app/(admin)/admin/(protected)/financeiro/actions";
+import { VendaRapidaForm } from "@/components/admin/VendaRapidaForm";
 
 const initialState: FinanceiroFormState = { error: null };
 
@@ -17,8 +18,15 @@ function formatDataCurta(data: string): string {
   return `${day}/${month}/${year.slice(2)}`;
 }
 
-export function FinanceiroManager({ entries }: { entries: Financeiro[] }) {
+export function FinanceiroManager({
+  entries,
+  products,
+}: {
+  entries: Financeiro[];
+  products: Product[];
+}) {
   const [tipo, setTipo] = useState<"entrada" | "saida">("entrada");
+  const [modoEntrada, setModoEntrada] = useState<"produto" | "outro">("produto");
   const [state, formAction, pending] = useActionState(createTransacao, initialState);
   const formRef = useRef<HTMLFormElement>(null);
   const [isDeleting, startDeleteTransition] = useTransition();
@@ -36,6 +44,8 @@ export function FinanceiroManager({ entries }: { entries: Financeiro[] }) {
     // digitação do usuário.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pending]);
+
+  const mostrarVendaProduto = tipo === "entrada" && modoEntrada === "produto";
 
   const totals = useMemo(() => {
     const entradas = entries.filter((e) => e.tipo === "entrada").reduce((sum, e) => sum + e.valor, 0);
@@ -74,14 +84,9 @@ export function FinanceiroManager({ entries }: { entries: Financeiro[] }) {
         </div>
       </div>
 
-      <form
-        ref={formRef}
-        action={formAction}
-        className="rounded-2xl border border-brand-sand/70 bg-white p-5"
-      >
+      <div className="rounded-2xl border border-brand-sand/70 bg-white p-5">
         <h2 className="font-serif text-base font-semibold text-brand-ink">Novo lançamento</h2>
 
-        <input type="hidden" name="tipo" value={tipo} />
         <div className="mt-3 flex gap-2">
           <button
             type="button"
@@ -109,62 +114,101 @@ export function FinanceiroManager({ entries }: { entries: Financeiro[] }) {
           </button>
         </div>
 
-        <div className="mt-4 grid gap-3 sm:grid-cols-2">
-          <div>
-            <label htmlFor="valor" className="block text-sm font-medium text-brand-ink">
-              Valor (R$)
-            </label>
-            <input
-              id="valor"
-              name="valor"
-              type="text"
-              inputMode="decimal"
-              placeholder="0,00"
-              required
-              className="mt-1.5 w-full rounded-lg border border-brand-sand bg-white px-4 py-2.5 text-sm text-brand-ink outline-none focus:border-brand-green focus:ring-1 focus:ring-brand-green"
-            />
+        {/* Só faz sentido "vender um produto" numa entrada — uma saída é
+            sempre um gasto avulso (ração, remédio etc), por isso esse
+            segundo nível de escolha só aparece com Entrada selecionada. */}
+        {tipo === "entrada" && (
+          <div className="mt-3 flex gap-2">
+            <button
+              type="button"
+              onClick={() => setModoEntrada("produto")}
+              className={cn(
+                "flex-1 rounded-full border px-3.5 py-1.5 text-xs font-medium transition-colors",
+                modoEntrada === "produto"
+                  ? "border-brand-green bg-brand-green/10 text-brand-green"
+                  : "border-brand-sand bg-white text-brand-ink/60",
+              )}
+            >
+              Venda de produto
+            </button>
+            <button
+              type="button"
+              onClick={() => setModoEntrada("outro")}
+              className={cn(
+                "flex-1 rounded-full border px-3.5 py-1.5 text-xs font-medium transition-colors",
+                modoEntrada === "outro"
+                  ? "border-brand-green bg-brand-green/10 text-brand-green"
+                  : "border-brand-sand bg-white text-brand-ink/60",
+              )}
+            >
+              Outra entrada
+            </button>
           </div>
-          <div>
-            <label htmlFor="categoria" className="block text-sm font-medium text-brand-ink">
-              Categoria (opcional)
-            </label>
-            <input
-              id="categoria"
-              name="categoria"
-              type="text"
-              placeholder="Ex: Ração, Venda rápida"
-              className="mt-1.5 w-full rounded-lg border border-brand-sand bg-white px-4 py-2.5 text-sm text-brand-ink outline-none focus:border-brand-green focus:ring-1 focus:ring-brand-green"
-            />
-          </div>
-          <div className="sm:col-span-2">
-            <label htmlFor="descricao" className="block text-sm font-medium text-brand-ink">
-              Descrição
-            </label>
-            <input
-              id="descricao"
-              name="descricao"
-              type="text"
-              required
-              placeholder="Ex: Venda de ovos, Compra de ração"
-              className="mt-1.5 w-full rounded-lg border border-brand-sand bg-white px-4 py-2.5 text-sm text-brand-ink outline-none focus:border-brand-green focus:ring-1 focus:ring-brand-green"
-            />
-          </div>
-        </div>
-
-        {state.error && (
-          <p role="alert" className="mt-3 text-sm text-red-600">
-            {state.error}
-          </p>
         )}
 
-        <button
-          type="submit"
-          disabled={pending}
-          className="mt-4 w-full rounded-full bg-brand-green px-6 py-2.5 text-sm font-medium text-brand-cream hover:bg-brand-green-dark disabled:opacity-60 sm:w-auto"
-        >
-          {pending ? "Salvando..." : "Adicionar lançamento"}
-        </button>
-      </form>
+        {mostrarVendaProduto ? (
+          <VendaRapidaForm products={products} />
+        ) : (
+          <form ref={formRef} action={formAction} className="mt-4">
+            <input type="hidden" name="tipo" value={tipo} />
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div>
+                <label htmlFor="valor" className="block text-sm font-medium text-brand-ink">
+                  Valor (R$)
+                </label>
+                <input
+                  id="valor"
+                  name="valor"
+                  type="text"
+                  inputMode="decimal"
+                  placeholder="0,00"
+                  required
+                  className="mt-1.5 w-full rounded-lg border border-brand-sand bg-white px-4 py-2.5 text-sm text-brand-ink outline-none focus:border-brand-green focus:ring-1 focus:ring-brand-green"
+                />
+              </div>
+              <div>
+                <label htmlFor="categoria" className="block text-sm font-medium text-brand-ink">
+                  Categoria (opcional)
+                </label>
+                <input
+                  id="categoria"
+                  name="categoria"
+                  type="text"
+                  placeholder="Ex: Ração, Venda rápida"
+                  className="mt-1.5 w-full rounded-lg border border-brand-sand bg-white px-4 py-2.5 text-sm text-brand-ink outline-none focus:border-brand-green focus:ring-1 focus:ring-brand-green"
+                />
+              </div>
+              <div className="sm:col-span-2">
+                <label htmlFor="descricao" className="block text-sm font-medium text-brand-ink">
+                  Descrição
+                </label>
+                <input
+                  id="descricao"
+                  name="descricao"
+                  type="text"
+                  required
+                  placeholder="Ex: Venda de ovos, Compra de ração"
+                  className="mt-1.5 w-full rounded-lg border border-brand-sand bg-white px-4 py-2.5 text-sm text-brand-ink outline-none focus:border-brand-green focus:ring-1 focus:ring-brand-green"
+                />
+              </div>
+            </div>
+
+            {state.error && (
+              <p role="alert" className="mt-3 text-sm text-red-600">
+                {state.error}
+              </p>
+            )}
+
+            <button
+              type="submit"
+              disabled={pending}
+              className="mt-4 w-full rounded-full bg-brand-green px-6 py-2.5 text-sm font-medium text-brand-cream hover:bg-brand-green-dark disabled:opacity-60 sm:w-auto"
+            >
+              {pending ? "Salvando..." : "Adicionar lançamento"}
+            </button>
+          </form>
+        )}
+      </div>
 
       <div>
         <h2 className="font-serif text-base font-semibold text-brand-ink">Lançamentos do mês</h2>

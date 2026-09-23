@@ -2,10 +2,11 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useRef, useState, useTransition } from "react";
+import { useMemo, useRef, useState, useTransition } from "react";
 import { ImageOff, Loader2, Pencil, Trash2 } from "lucide-react";
-import type { Product } from "@/lib/types/domain";
+import type { Product, ProductType } from "@/lib/types/domain";
 import { Badge } from "@/components/ui/Badge";
+import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import { buildProductImagePath } from "@/lib/storage";
 import { parsePriceInput, toPriceInputValue } from "@/lib/utils";
@@ -18,8 +19,25 @@ import { updateProductPriceQuick, updateProductStockQuick } from "@/lib/actions/
 
 const BUCKET = "product-images";
 
+type TipoFilter = "todos" | ProductType;
+
 export function AdminProductTable({ products }: { products: Product[] }) {
   const [isPending, startTransition] = useTransition();
+  const [tipoFilter, setTipoFilter] = useState<TipoFilter>("todos");
+
+  const counts = useMemo(
+    () => ({
+      todos: products.length,
+      ovo: products.filter((p) => p.productType === "ovo").length,
+      ave: products.filter((p) => p.productType === "ave").length,
+    }),
+    [products],
+  );
+
+  const filtered = useMemo(
+    () => (tipoFilter === "todos" ? products : products.filter((p) => p.productType === tipoFilter)),
+    [products, tipoFilter],
+  );
 
   function handleToggleActive(id: string, next: boolean) {
     startTransition(() => toggleProductActive(id, next));
@@ -36,6 +54,32 @@ export function AdminProductTable({ products }: { products: Product[] }) {
     startTransition(() => deleteProduct(id));
   }
 
+  const filterTabs = (
+    <div className="mb-4 flex flex-wrap gap-2">
+      {(
+        [
+          { key: "todos" as const, label: `Todos (${counts.todos})` },
+          { key: "ovo" as const, label: `Ovos (${counts.ovo})` },
+          { key: "ave" as const, label: `Aves (${counts.ave})` },
+        ] satisfies { key: TipoFilter; label: string }[]
+      ).map((tab) => (
+        <button
+          key={tab.key}
+          type="button"
+          onClick={() => setTipoFilter(tab.key)}
+          className={cn(
+            "rounded-full border px-4 py-1.5 text-sm font-medium transition-colors",
+            tipoFilter === tab.key
+              ? "border-brand-green bg-brand-green text-brand-cream"
+              : "border-brand-sand bg-white text-brand-ink/70 hover:border-brand-green/50",
+          )}
+        >
+          {tab.label}
+        </button>
+      ))}
+    </div>
+  );
+
   if (products.length === 0) {
     return (
       <p className="rounded-2xl border border-dashed border-brand-sand bg-white p-10 text-center text-sm text-brand-ink/60">
@@ -46,6 +90,14 @@ export function AdminProductTable({ products }: { products: Product[] }) {
 
   return (
     <>
+      {filterTabs}
+
+      {filtered.length === 0 ? (
+        <p className="rounded-2xl border border-dashed border-brand-sand bg-white p-10 text-center text-sm text-brand-ink/60">
+          Nenhum item desse tipo cadastrado.
+        </p>
+      ) : (
+        <>
       {/* Tabela completa: só a partir de lg, onde as 8 colunas cabem sem
           precisar rolar de lado. Em telas menores, a lista de cards abaixo
           assume — antes o celular só tinha essa tabela com rolagem
@@ -65,7 +117,7 @@ export function AdminProductTable({ products }: { products: Product[] }) {
             </tr>
           </thead>
           <tbody className="divide-y divide-brand-sand/60">
-            {products.map((product) => (
+            {filtered.map((product) => (
               <tr key={product.id} className="align-middle">
                 <td className="px-4 py-3">
                   <PhotoCell productId={product.id} name={product.name} mainImage={product.mainImage} />
@@ -138,7 +190,7 @@ export function AdminProductTable({ products }: { products: Product[] }) {
       {/* Versão em cards: abaixo de lg (celular e tablet em pé). Mesmas
           ações da tabela, só que empilhadas de um jeito fácil de tocar. */}
       <div className="flex flex-col gap-3 lg:hidden">
-        {products.map((product) => (
+        {filtered.map((product) => (
           <div key={product.id} className="rounded-2xl border border-brand-sand/70 bg-white p-3.5">
             <div className="flex gap-3">
               <PhotoCell productId={product.id} name={product.name} mainImage={product.mainImage} />
@@ -205,6 +257,8 @@ export function AdminProductTable({ products }: { products: Product[] }) {
           </div>
         ))}
       </div>
+        </>
+      )}
     </>
   );
 }

@@ -130,23 +130,14 @@ export default async function AdminDashboardPage() {
         ))}
       </div>
 
-      <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Link
-          href="/admin/estoque"
+          href="/admin/produtos"
           className="rounded-2xl border border-brand-sand/70 bg-white p-5 hover:border-brand-green/50"
         >
-          <h2 className="font-serif text-lg font-semibold text-brand-ink">Atualizar estoque</h2>
+          <h2 className="font-serif text-lg font-semibold text-brand-ink">Produtos</h2>
           <p className="mt-1 text-sm text-brand-ink/60">
-            Altere rapidamente a quantidade disponível de cada raça.
-          </p>
-        </Link>
-        <Link
-          href="/admin/precos"
-          className="rounded-2xl border border-brand-sand/70 bg-white p-5 hover:border-brand-green/50"
-        >
-          <h2 className="font-serif text-lg font-semibold text-brand-ink">Atualizar preços</h2>
-          <p className="mt-1 text-sm text-brand-ink/60">
-            Altere rapidamente o preço por ovo de cada raça.
+            Veja tudo (ovos e aves), filtre por tipo e edite preço e estoque direto na lista.
           </p>
         </Link>
         <Link

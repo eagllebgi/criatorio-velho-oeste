@@ -1,11 +1,11 @@
-import { getFinanceiroMesAdmin } from "@/lib/data/admin";
+import { getAllProductsAdmin, getFinanceiroMesAdmin } from "@/lib/data/admin";
 import { FinanceiroManager } from "@/components/admin/FinanceiroManager";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Financeiro" };
 
 export default async function FinanceiroPage() {
-  const entries = await getFinanceiroMesAdmin();
+  const [entries, products] = await Promise.all([getFinanceiroMesAdmin(), getAllProductsAdmin()]);
 
   return (
     <div>
@@ -14,7 +14,7 @@ export default async function FinanceiroPage() {
         Registre entradas e saídas do dia a dia e acompanhe o caixa do mês.
       </p>
       <div className="mt-6">
-        <FinanceiroManager entries={entries} />
+        <FinanceiroManager entries={entries} products={products} />
       </div>
     </div>
   );
