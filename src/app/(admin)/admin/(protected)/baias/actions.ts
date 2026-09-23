@@ -96,6 +96,35 @@ export async function deleteBaia(baiaId: string) {
   revalidatePath("/admin/aves");
 }
 
+// Edição rápida de status e destino padrão direto no card, sem abrir o painel
+// de edição completo — só esses dois campos, que são os que mais mudam no
+// dia a dia (ex: baia entrou em reprodução, ou passou a incubar em vez de
+// vender os ovos).
+export async function updateBaiaStatusQuick(
+  baiaId: string,
+  status: "Reprodução" | "Ativa" | "Inativa",
+): Promise<FormState> {
+  const supabase = await createClient();
+  const { error } = await supabase.from("baias").update({ status }).eq("id", baiaId);
+  if (error) return { error: error.message };
+  revalidateGestaoPaths();
+  return { error: null };
+}
+
+export async function updateBaiaDestinoQuick(
+  baiaId: string,
+  destinoPadrao: "venda" | "choc" | "reservado" | "descarte",
+): Promise<FormState> {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("baias")
+    .update({ destino_padrao: destinoPadrao })
+    .eq("id", baiaId);
+  if (error) return { error: error.message };
+  revalidateGestaoPaths();
+  return { error: null };
+}
+
 // ── Observações ───────────────────────────────────────────────────────────
 
 export async function createObservacao(baiaId: string, texto: string): Promise<FormState> {

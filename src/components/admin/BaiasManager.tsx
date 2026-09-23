@@ -1,9 +1,9 @@
 "use client";
 
 import { useActionState, useEffect, useRef, useState, useTransition } from "react";
-import { Egg, MessageSquarePlus, Pencil, Plus, Trash2, Users } from "lucide-react";
+import { ChevronDown, Egg, Loader2, MessageSquarePlus, Pencil, Plus, Trash2, Users } from "lucide-react";
 import type { Baia } from "@/lib/types/domain";
-import { Badge } from "@/components/ui/Badge";
+import { Badge, badgeToneClasses, type BadgeTone } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Sheet } from "@/components/ui/Sheet";
 import { cn, formatBRL } from "@/lib/utils";
@@ -13,6 +13,8 @@ import {
   createPostura,
   deleteBaia,
   updateBaia,
+  updateBaiaDestinoQuick,
+  updateBaiaStatusQuick,
   type FormState,
 } from "@/app/(admin)/admin/(protected)/baias/actions";
 
@@ -21,17 +23,17 @@ const initialState: FormState = { error: null };
 const inputClass =
   "mt-1.5 w-full rounded-lg border border-brand-sand bg-white px-4 py-2.5 text-sm text-brand-ink outline-none focus:border-brand-green focus:ring-1 focus:ring-brand-green";
 
-const statusTone: Record<Baia["status"], "available" | "gold" | "neutral"> = {
+const statusTone: Record<Baia["status"], BadgeTone> = {
   Ativa: "available",
   "Reprodução": "gold",
   Inativa: "neutral",
 };
 
-const destinoLabel: Record<Baia["destinoPadrao"], string> = {
-  venda: "Venda",
-  choc: "Chocadeira",
-  reservado: "Reservado",
-  descarte: "Descarte",
+const destinoTone: Record<Baia["destinoPadrao"], BadgeTone> = {
+  venda: "available",
+  choc: "gold",
+  reservado: "low",
+  descarte: "out",
 };
 
 export function BaiasManager({ baias }: { baias: Baia[] }) {
@@ -92,8 +94,8 @@ export function BaiasManager({ baias }: { baias: Baia[] }) {
               </div>
 
               <div className="mt-3 flex flex-wrap items-center gap-1.5">
-                <Badge tone={statusTone[baia.status]}>{baia.status}</Badge>
-                <Badge tone="neutral">Destino: {destinoLabel[baia.destinoPadrao]}</Badge>
+                <StatusQuickSelect baiaId={baia.id} status={baia.status} />
+                <DestinoQuickSelect baiaId={baia.id} destino={baia.destinoPadrao} />
                 {baia.precoOvo !== null && <Badge tone="neutral">{formatBRL(baia.precoOvo)}/ovo</Badge>}
               </div>
 
@@ -160,6 +162,97 @@ export function BaiasManager({ baias }: { baias: Baia[] }) {
 
       {obsFor && <ObsSheet baia={obsFor} onClose={() => setObsFor(null)} />}
     </div>
+  );
+}
+
+/** Select disfarçado de badge colorido — clica, escolhe e salva sozinho,
+ * sem precisar abrir o painel de edição completo. Mesmo padrão de "clica e
+ * salva" já usado no preço/estoque de Produtos. */
+function QuickSelectBadge<T extends string>({
+  value,
+  tone,
+  options,
+  onCommit,
+}: {
+  value: T;
+  tone: BadgeTone;
+  options: { value: T; label: string }[];
+  onCommit: (next: T) => void;
+}) {
+  const [current, setCurrent] = useState(value);
+  const [isPending, startTransition] = useTransition();
+
+  function handleChange(next: T) {
+    setCurrent(next);
+    startTransition(() => onCommit(next));
+  }
+
+  return (
+    <span className="relative inline-flex items-center">
+      <select
+        value={current}
+        disabled={isPending}
+        onChange={(e) => handleChange(e.target.value as T)}
+        className={cn(
+          "appearance-none rounded-full py-1 pl-3 pr-6 text-xs font-medium outline-none cursor-pointer disabled:cursor-wait disabled:opacity-70",
+          badgeToneClasses[tone],
+        )}
+      >
+        {options.map((opt) => (
+          <option key={opt.value} value={opt.value}>
+            {opt.label}
+          </option>
+        ))}
+      </select>
+      {isPending ? (
+        <Loader2
+          className="pointer-events-none absolute right-1.5 h-3 w-3 animate-spin opacity-70"
+          aria-hidden="true"
+        />
+      ) : (
+        <ChevronDown
+          className="pointer-events-none absolute right-1.5 h-3 w-3 opacity-60"
+          aria-hidden="true"
+        />
+      )}
+    </span>
+  );
+}
+
+function StatusQuickSelect({ baiaId, status }: { baiaId: string; status: Baia["status"] }) {
+  return (
+    <QuickSelectBadge
+      value={status}
+      tone={statusTone[status]}
+      options={[
+        { value: "Ativa", label: "Ativa" },
+        { value: "Reprodução", label: "Reprodução" },
+        { value: "Inativa", label: "Inativa" },
+      ]}
+      onCommit={(next) => updateBaiaStatusQuick(baiaId, next)}
+    />
+  );
+}
+
+function DestinoQuickSelect({
+  baiaId,
+  destino,
+}: {
+  baiaId: string;
+  destino: Baia["destinoPadrao"];
+}) {
+  return (
+    <QuickSelectBadge
+      value={destino}
+      tone={destinoTone[destino]}
+      options={[
+        { value: "venda", label: "Destino: Venda" },
+        { value: "choc", label: "Destino: Chocadeira" },
+        { value: "reservado", label: "Destino: Reservado" },
+        { value: "descarte", label: "Destino: Descarte" },
+      ]}
+      onCommit={(next) => updateBaiaDestinoQuick(baiaId, next)}
+    />
   );
 }
 

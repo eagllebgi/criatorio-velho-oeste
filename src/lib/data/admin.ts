@@ -108,10 +108,21 @@ export async function getFinanceiroMesAdmin(month?: string): Promise<Financeiro[
 
 const BAIA_SELECT = `*, aves ( sexo )`;
 
+/** Número da baia pode ser só dígitos ("1", "23") ou dígitos + letra ("1A",
+ * "2A") — as baias aéreas de filhotada, por exemplo. Pra ordenar como uma
+ * contagem normal (Baia 1, Baia 2, ..., Baia 30) em vez de ordem de texto
+ * (que colocaria "10" antes de "2"), separa o número da letra. */
+function parseNumero(numero: string): { numerica: boolean; num: number; sufixo: string } {
+  const match = numero.match(/^(\d+)([A-Za-z]*)$/);
+  if (!match) return { numerica: false, num: Number.POSITIVE_INFINITY, sufixo: numero };
+  const [, digitos, sufixo] = match;
+  return { numerica: sufixo === "", num: Number(digitos), sufixo };
+}
+
 /** Todas as baias, com a contagem de aves (calculada a partir da tabela
- * `aves`) já embutida — ver mapBaia. Ordenadas por espécie em ordem
- * alfabética (não pelo número da baia), pra facilitar achar uma raça no
- * meio de muitas baias; dentro da mesma espécie, desempata pelo número. */
+ * `aves`) já embutida — ver mapBaia. Ordenadas pelo número da baia (Baia 1,
+ * Baia 2, ...); as baias com letra (1A, 2A...) ficam agrupadas no final,
+ * também em ordem, em vez de intercaladas com as numeradas. */
 export async function getAllBaiasAdmin(): Promise<Baia[]> {
   const supabase = await createClient();
   const { data, error } = await supabase.from("baias").select(BAIA_SELECT);
@@ -121,12 +132,13 @@ export async function getAllBaiasAdmin(): Promise<Baia[]> {
     return [];
   }
 
-  return (data ?? [])
-    .map(mapBaia)
-    .sort(
-      (a, b) =>
-        a.especie.localeCompare(b.especie, "pt-BR") || a.numero.localeCompare(b.numero, "pt-BR"),
-    );
+  return (data ?? []).map(mapBaia).sort((a, b) => {
+    const pa = parseNumero(a.numero);
+    const pb = parseNumero(b.numero);
+    if (pa.numerica !== pb.numerica) return pa.numerica ? -1 : 1;
+    if (pa.num !== pb.num) return pa.num - pb.num;
+    return pa.sufixo.localeCompare(pb.sufixo, "pt-BR");
+  });
 }
 
 export async function getBaiaByIdAdmin(id: string): Promise<Baia | null> {

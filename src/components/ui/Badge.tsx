@@ -1,14 +1,19 @@
 import { cn } from "@/lib/utils";
 
-type BadgeTone = "available" | "low" | "out" | "neutral" | "gold";
+export type BadgeTone = "available" | "low" | "out" | "neutral" | "gold";
 
-const toneClasses: Record<BadgeTone, string> = {
+/** Exportado pra outros componentes (ex: um <select> que precisa parecer um
+ * Badge, como os de status/destino em BaiasManager) usarem exatamente as
+ * mesmas cores, sem duplicar a paleta. */
+export const badgeToneClasses: Record<BadgeTone, string> = {
   available: "bg-brand-green/10 text-brand-green",
   low: "bg-brand-gold/15 text-brand-brown-dark",
   out: "bg-brand-ink/10 text-brand-ink/70",
   neutral: "bg-brand-sand text-brand-brown-dark",
   gold: "bg-brand-gold text-brand-ink",
 };
+
+const toneClasses = badgeToneClasses;
 
 export function Badge({
   tone = "neutral",
