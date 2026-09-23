@@ -77,7 +77,12 @@ export function mapFinanceiro(row: FinanceiroRow): Financeiro {
   };
 }
 
-export function mapBaia(row: BaiaRow): Baia {
+type BaiaRowWithRelations = BaiaRow & {
+  aves: { sexo: Ave["sexo"] }[] | null;
+};
+
+export function mapBaia(row: BaiaRowWithRelations): Baia {
+  const aves = row.aves ?? [];
   return {
     id: row.id,
     codigo: row.codigo,
@@ -91,6 +96,9 @@ export function mapBaia(row: BaiaRow): Baia {
     observacoes: row.observacoes,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    totalAves: aves.length,
+    machos: aves.filter((a) => a.sexo === "Macho").length,
+    femeas: aves.filter((a) => a.sexo === "Fêmea").length,
   };
 }
 

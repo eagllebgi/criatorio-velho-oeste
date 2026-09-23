@@ -106,24 +106,36 @@ export async function getFinanceiroMesAdmin(month?: string): Promise<Financeiro[
 
 // ── Gestão interna: baias ────────────────────────────────────────────────
 
+const BAIA_SELECT = `*, aves ( sexo )`;
+
+/** Todas as baias, com a contagem de aves (calculada a partir da tabela
+ * `aves`) já embutida — ver mapBaia. Ordenadas por espécie em ordem
+ * alfabética (não pelo número da baia), pra facilitar achar uma raça no
+ * meio de muitas baias; dentro da mesma espécie, desempata pelo número. */
 export async function getAllBaiasAdmin(): Promise<Baia[]> {
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("baias")
-    .select("*")
-    .order("numero", { ascending: true });
+  const { data, error } = await supabase.from("baias").select(BAIA_SELECT);
 
   if (error) {
     console.error("getAllBaiasAdmin error:", error.message);
     return [];
   }
 
-  return (data ?? []).map(mapBaia);
+  return (data ?? [])
+    .map(mapBaia)
+    .sort(
+      (a, b) =>
+        a.especie.localeCompare(b.especie, "pt-BR") || a.numero.localeCompare(b.numero, "pt-BR"),
+    );
 }
 
 export async function getBaiaByIdAdmin(id: string): Promise<Baia | null> {
   const supabase = await createClient();
-  const { data, error } = await supabase.from("baias").select("*").eq("id", id).maybeSingle();
+  const { data, error } = await supabase
+    .from("baias")
+    .select(BAIA_SELECT)
+    .eq("id", id)
+    .maybeSingle();
   if (error || !data) return null;
   return mapBaia(data);
 }

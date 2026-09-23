@@ -75,6 +75,11 @@ export interface Baia {
   observacoes: string | null;
   createdAt: string;
   updatedAt: string;
+  /** Quantidade de aves atualmente vinculadas a essa baia — calculada a
+   * partir da tabela `aves`, sempre em dia com o plantel real. */
+  totalAves: number;
+  machos: number;
+  femeas: number;
 }
 
 export interface BaiaObservacao {

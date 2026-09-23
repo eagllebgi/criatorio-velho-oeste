@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useRef, useState, useTransition } from "react";
-import { Egg, MessageSquarePlus, Pencil, Plus, Trash2 } from "lucide-react";
+import { Egg, MessageSquarePlus, Pencil, Plus, Trash2, Users } from "lucide-react";
 import type { Baia } from "@/lib/types/domain";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -77,25 +77,18 @@ export function BaiasManager({ baias }: { baias: Baia[] }) {
                     {baia.setor ? ` · ${baia.setor}` : ""}
                   </p>
                 </div>
-                <div className="flex shrink-0 items-center gap-0.5">
-                  <button
-                    type="button"
-                    onClick={() => setEditing(baia)}
-                    aria-label={`Editar ${baia.nome}`}
-                    className="flex h-8 w-8 items-center justify-center rounded-full text-brand-green hover:bg-brand-green/10"
-                  >
-                    <Pencil className="h-4 w-4" aria-hidden="true" />
-                  </button>
-                  <button
-                    type="button"
-                    disabled={isPending}
-                    onClick={() => handleDelete(baia)}
-                    aria-label={`Excluir ${baia.nome}`}
-                    className="flex h-8 w-8 items-center justify-center rounded-full text-brand-ink/50 hover:bg-red-50 hover:text-red-600"
-                  >
-                    <Trash2 className="h-4 w-4" aria-hidden="true" />
-                  </button>
-                </div>
+                {/* Excluir fica só aqui, pequeno e isolado de propósito — é a
+                    única ação destrutiva do card. Editar virou um botão
+                    completo lá embaixo, mais fácil de acertar o toque. */}
+                <button
+                  type="button"
+                  disabled={isPending}
+                  onClick={() => handleDelete(baia)}
+                  aria-label={`Excluir ${baia.nome}`}
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-brand-ink/50 hover:bg-red-50 hover:text-red-600"
+                >
+                  <Trash2 className="h-4 w-4" aria-hidden="true" />
+                </button>
               </div>
 
               <div className="mt-3 flex flex-wrap items-center gap-1.5">
@@ -104,11 +97,28 @@ export function BaiasManager({ baias }: { baias: Baia[] }) {
                 {baia.precoOvo !== null && <Badge tone="neutral">{formatBRL(baia.precoOvo)}/ovo</Badge>}
               </div>
 
-              <div className="mt-4 flex gap-2">
+              {/* Contagem de aves vinculadas a essa baia — direto do banco,
+                  sempre batendo com o que está cadastrado em Plantel. */}
+              <p className="mt-2.5 flex items-center gap-1.5 text-xs text-brand-ink/60">
+                <Users className="h-3.5 w-3.5 shrink-0 text-brand-ink/40" aria-hidden="true" />
+                {baia.totalAves === 0
+                  ? "0 aves"
+                  : `${baia.totalAves} ave${baia.totalAves === 1 ? "" : "s"} · ${baia.machos} macho${baia.machos === 1 ? "" : "s"}, ${baia.femeas} fêmea${baia.femeas === 1 ? "" : "s"}`}
+              </p>
+
+              <div className="mt-4 grid grid-cols-3 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setEditing(baia)}
+                  className="flex items-center justify-center gap-1.5 rounded-full border border-brand-sand px-2 py-2 text-xs font-medium text-brand-ink/70 hover:border-brand-green hover:text-brand-green"
+                >
+                  <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
+                  Editar
+                </button>
                 <button
                   type="button"
                   onClick={() => setPosturaFor(baia)}
-                  className="flex flex-1 items-center justify-center gap-1.5 rounded-full border border-brand-green px-3 py-2 text-xs font-medium text-brand-green hover:bg-brand-green hover:text-brand-cream"
+                  className="flex items-center justify-center gap-1.5 rounded-full border border-brand-green px-2 py-2 text-xs font-medium text-brand-green hover:bg-brand-green hover:text-brand-cream"
                 >
                   <Egg className="h-3.5 w-3.5" aria-hidden="true" />
                   Postura
@@ -116,7 +126,7 @@ export function BaiasManager({ baias }: { baias: Baia[] }) {
                 <button
                   type="button"
                   onClick={() => setObsFor(baia)}
-                  className="flex flex-1 items-center justify-center gap-1.5 rounded-full border border-brand-sand px-3 py-2 text-xs font-medium text-brand-ink/70 hover:border-brand-green hover:text-brand-green"
+                  className="flex items-center justify-center gap-1.5 rounded-full border border-brand-sand px-2 py-2 text-xs font-medium text-brand-ink/70 hover:border-brand-green hover:text-brand-green"
                 >
                   <MessageSquarePlus className="h-3.5 w-3.5" aria-hidden="true" />
                   Obs.
