@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   ShoppingBasket,
-  FolderTree,
   Wallet,
   Warehouse,
   Bird,
@@ -19,7 +18,6 @@ import { signOut } from "@/app/(admin)/admin/login/actions";
 const navItems = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
   { href: "/admin/produtos", label: "Produtos", icon: ShoppingBasket, exact: false },
-  { href: "/admin/categorias", label: "Categorias", icon: FolderTree, exact: false },
   { href: "/admin/financeiro", label: "Financeiro", icon: Wallet, exact: false },
   { href: "/admin/baias", label: "Baias", icon: Warehouse, exact: false },
   { href: "/admin/aves", label: "Plantel", icon: Bird, exact: false },

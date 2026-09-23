@@ -34,7 +34,7 @@ export async function getActiveProducts(type?: ProductType): Promise<Product[]> 
         .from("products")
         .select(PRODUCT_SELECT)
         .eq("active", true)
-        .order("display_order", { ascending: true });
+        .order("name", { ascending: true });
 
       if (type) query = query.eq("product_type", type);
 
@@ -59,7 +59,7 @@ export async function getFeaturedProducts(limit = 8): Promise<Product[]> {
         .eq("active", true)
         .eq("featured", true)
         .gt("stock", 0)
-        .order("display_order", { ascending: true })
+        .order("name", { ascending: true })
         .limit(limit);
 
       if (error) throw error;

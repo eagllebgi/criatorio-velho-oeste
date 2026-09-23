@@ -1,10 +1,14 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import type { Category, Product } from "@/lib/types/domain";
 import type { ProductFormState } from "@/app/(admin)/admin/(protected)/produtos/actions";
 
 const initialState: ProductFormState = { error: null };
+
+/** Mesmo sentinel usado em produtos/actions.ts pra reconhecer que o usuário
+ * escolheu "+ Nova categoria" em vez de uma categoria já existente. */
+const NOVA_CATEGORIA = "__nova__";
 
 interface ProductFormProps {
   product?: Product;
@@ -18,6 +22,7 @@ const inputClass =
 
 export function ProductForm({ product, categories, action, submitLabel }: ProductFormProps) {
   const [state, formAction, pending] = useActionState(action, initialState);
+  const [categoryValue, setCategoryValue] = useState(product?.categoryId ?? "");
 
   return (
     <form action={formAction} className="max-w-3xl space-y-6">
@@ -58,7 +63,8 @@ export function ProductForm({ product, categories, action, submitLabel }: Produc
           <select
             id="category_id"
             name="category_id"
-            defaultValue={product?.categoryId ?? ""}
+            value={categoryValue}
+            onChange={(e) => setCategoryValue(e.target.value)}
             className={inputClass}
           >
             <option value="">Sem categoria</option>
@@ -67,20 +73,21 @@ export function ProductForm({ product, categories, action, submitLabel }: Produc
                 {c.name}
               </option>
             ))}
+            <option value={NOVA_CATEGORIA}>+ Nova categoria</option>
           </select>
-        </div>
-
-        <div>
-          <label htmlFor="display_order" className="block text-sm font-medium text-brand-ink">
-            Ordem de exibição
-          </label>
-          <input
-            id="display_order"
-            name="display_order"
-            type="number"
-            defaultValue={product?.displayOrder ?? 0}
-            className={inputClass}
-          />
+          {/* Categoria nova entra direto aqui — não existe mais uma tela
+              separada só pra cadastrar categoria antes da raça. */}
+          {categoryValue === NOVA_CATEGORIA && (
+            <input
+              id="nova_categoria"
+              name="nova_categoria"
+              type="text"
+              required
+              autoFocus
+              placeholder="Nome da nova categoria (ex: Marrecos)"
+              className={`${inputClass} mt-2`}
+            />
+          )}
         </div>
 
         <div>
