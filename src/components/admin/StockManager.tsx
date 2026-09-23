@@ -43,7 +43,9 @@ export function StockManager({ products }: { products: Product[] }) {
 
   return (
     <div>
-      <div className="overflow-x-auto rounded-2xl border border-brand-sand/70 bg-white">
+      {/* Tabela: só a partir de sm, onde as 4 colunas cabem sem rolar de
+          lado. No celular a lista de cards abaixo assume. */}
+      <div className="hidden overflow-x-auto rounded-2xl border border-brand-sand/70 bg-white sm:block">
         <table className="w-full min-w-[640px] text-left text-sm">
           <thead className="border-b border-brand-sand/70 bg-brand-cream-dark/40 text-xs uppercase tracking-wide text-brand-ink/50">
             <tr>
@@ -85,6 +87,37 @@ export function StockManager({ products }: { products: Product[] }) {
             ))}
           </tbody>
         </table>
+      </div>
+
+      {/* Cards: só no celular. */}
+      <div className="flex flex-col gap-3 sm:hidden">
+        {products.map((product) => (
+          <div key={product.id} className="rounded-2xl border border-brand-sand/70 bg-white p-4">
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-medium text-brand-ink">{product.name}</span>
+              <span className="shrink-0 text-xs text-brand-ink/50">Atual: {product.stock}</span>
+            </div>
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              {QUICK_DELTAS.map((delta) => (
+                <button
+                  key={delta}
+                  type="button"
+                  onClick={() => setValue(product.id, values[product.id] + delta)}
+                  className="rounded-full border border-brand-sand px-3 py-1.5 text-xs font-medium text-brand-ink/70 hover:border-brand-green hover:text-brand-green"
+                >
+                  {delta > 0 ? `+${delta}` : delta}
+                </button>
+              ))}
+            </div>
+            <input
+              type="number"
+              min={0}
+              value={values[product.id]}
+              onChange={(e) => setValue(product.id, Number(e.target.value))}
+              className="mt-3 w-full rounded-lg border border-brand-sand px-3 py-2 text-sm outline-none focus:border-brand-green focus:ring-1 focus:ring-brand-green"
+            />
+          </div>
+        ))}
       </div>
 
       <div className="mt-5 flex items-center gap-4">

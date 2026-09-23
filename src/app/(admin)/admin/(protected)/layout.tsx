@@ -41,13 +41,13 @@ export default async function ProtectedAdminLayout({
   return (
     <div className="flex min-h-screen flex-col lg:flex-row">
       <AdminSidebar />
-      <div className="flex-1">
-        <header className="flex items-center justify-between border-b border-brand-sand/70 bg-white px-6 py-4">
-          <span className="text-sm text-brand-ink/60">
+      <div className="min-w-0 flex-1">
+        <header className="flex items-center justify-between border-b border-brand-sand/70 bg-white px-4 py-3 sm:px-6 sm:py-4">
+          <span className="truncate text-xs text-brand-ink/60 sm:text-sm">
             Conectado como <span className="font-medium text-brand-ink">{user.email}</span>
           </span>
         </header>
-        <main className="p-6">{children}</main>
+        <main className="p-4 sm:p-6">{children}</main>
       </div>
     </div>
   );

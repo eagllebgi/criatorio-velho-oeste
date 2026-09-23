@@ -54,7 +54,8 @@ export function PriceManager({ products }: { products: Product[] }) {
 
   return (
     <div>
-      <div className="overflow-x-auto rounded-2xl border border-brand-sand/70 bg-white">
+      {/* Tabela: só a partir de sm. No celular a lista de cards abaixo assume. */}
+      <div className="hidden overflow-x-auto rounded-2xl border border-brand-sand/70 bg-white sm:block">
         <table className="w-full min-w-[560px] text-left text-sm">
           <thead className="border-b border-brand-sand/70 bg-brand-cream-dark/40 text-xs uppercase tracking-wide text-brand-ink/50">
             <tr>
@@ -85,6 +86,31 @@ export function PriceManager({ products }: { products: Product[] }) {
             ))}
           </tbody>
         </table>
+      </div>
+
+      {/* Cards: só no celular. */}
+      <div className="flex flex-col gap-3 sm:hidden">
+        {products.map((product) => (
+          <div key={product.id} className="rounded-2xl border border-brand-sand/70 bg-white p-4">
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-medium text-brand-ink">{product.name}</span>
+              <span className="shrink-0 text-xs text-brand-ink/50">
+                Atual: {formatBRL(product.price)}
+              </span>
+            </div>
+            <div className="mt-3 flex items-center gap-1.5">
+              <span className="text-brand-ink/50">R$</span>
+              <input
+                type="text"
+                inputMode="decimal"
+                placeholder="0,00"
+                value={values[product.id]}
+                onChange={(e) => setValue(product.id, e.target.value)}
+                className="w-full rounded-lg border border-brand-sand px-3 py-2 text-sm outline-none focus:border-brand-green focus:ring-1 focus:ring-brand-green"
+              />
+            </div>
+          </div>
+        ))}
       </div>
 
       <div className="mt-5 flex items-center gap-4">

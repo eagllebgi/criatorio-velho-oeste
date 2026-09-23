@@ -106,12 +106,12 @@ export function Footer() {
       </div>
 
       <div className="border-t border-brand-cream/10 py-6">
-        <div className="container-site flex flex-col gap-2 text-xs text-brand-cream/60 sm:flex-row sm:items-center sm:justify-between">
+        <div className="container-site flex flex-col gap-3 text-xs text-brand-cream/60 sm:flex-row sm:items-center sm:justify-between">
           <span>
             © {new Date().getFullYear()} {siteConfig.name}. Todos os direitos
             reservados.
           </span>
-          <span className="flex gap-4">
+          <span className="flex flex-wrap items-center gap-x-4 gap-y-2">
             {siteConfig.legal.privacyPolicyUrl ? (
               <Link href={siteConfig.legal.privacyPolicyUrl}>
                 Política de Privacidade
@@ -125,6 +125,21 @@ export function Footer() {
               <span>Termos de Uso (em breve)</span>
             )}
           </span>
+        </div>
+        {/* Crédito do responsável pelo design/desenvolvimento do site, a
+            pedido do Gabriel — link direto pro Instagram dele. */}
+        <div className="container-site mt-3 border-t border-brand-cream/10 pt-3">
+          <p className="text-xs text-brand-cream/50">
+            Design e desenvolvimento:{" "}
+            <a
+              href="https://instagram.com/gabrielbucalon"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-medium text-brand-cream/70 hover:text-brand-cream"
+            >
+              @gabrielbucalon
+            </a>
+          </p>
         </div>
       </div>
     </footer>

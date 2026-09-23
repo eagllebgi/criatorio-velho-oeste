@@ -45,83 +45,155 @@ export function AdminProductTable({ products }: { products: Product[] }) {
   }
 
   return (
-    <div className="overflow-x-auto rounded-2xl border border-brand-sand/70 bg-white">
-      <table className="w-full min-w-[860px] text-left text-sm">
-        <thead className="border-b border-brand-sand/70 bg-brand-cream-dark/40 text-xs uppercase tracking-wide text-brand-ink/50">
-          <tr>
-            <th className="px-4 py-3 font-medium">Foto</th>
-            <th className="px-4 py-3 font-medium">Raça</th>
-            <th className="px-4 py-3 font-medium">Categoria</th>
-            <th className="px-4 py-3 font-medium">Preço</th>
-            <th className="px-4 py-3 font-medium">Estoque</th>
-            <th className="px-4 py-3 font-medium">Status</th>
-            <th className="px-4 py-3 font-medium">Destaque</th>
-            <th className="px-4 py-3 font-medium text-right">Ações</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-brand-sand/60">
-          {products.map((product) => (
-            <tr key={product.id} className="align-middle">
-              <td className="px-4 py-3">
-                <PhotoCell productId={product.id} name={product.name} mainImage={product.mainImage} />
-              </td>
-              <td className="px-4 py-3 font-medium text-brand-ink">{product.name}</td>
-              <td className="px-4 py-3 text-brand-ink/70">
-                {product.categoryName ?? "—"}
-              </td>
-              <td className="px-4 py-3">
-                <PriceCell productId={product.id} price={product.price} />
-              </td>
-              <td className="px-4 py-3">
-                <StockCell productId={product.id} stock={product.stock} />
-              </td>
-              <td className="px-4 py-3">
-                <button
-                  type="button"
-                  disabled={isPending}
-                  onClick={() => handleToggleActive(product.id, !product.active)}
-                >
-                  <Badge tone={product.active ? "available" : "neutral"}>
-                    {product.active ? "Ativo" : "Inativo"}
-                  </Badge>
-                </button>
-              </td>
-              <td className="px-4 py-3">
-                <button
-                  type="button"
-                  disabled={isPending}
-                  onClick={() => handleToggleFeatured(product.id, !product.featured)}
-                >
-                  <Badge tone={product.featured ? "gold" : "neutral"}>
-                    {product.featured ? "Sim" : "Não"}
-                  </Badge>
-                </button>
-              </td>
-              <td className="px-4 py-3">
-                <div className="flex items-center justify-end gap-1">
-                  <Link
-                    href={`/admin/produtos/${product.id}`}
-                    aria-label={`Editar ${product.name}`}
-                    className="flex h-8 w-8 items-center justify-center rounded-full text-brand-green hover:bg-brand-green/10"
-                  >
-                    <Pencil className="h-4 w-4" aria-hidden="true" />
-                  </Link>
+    <>
+      {/* Tabela completa: só a partir de lg, onde as 8 colunas cabem sem
+          precisar rolar de lado. Em telas menores, a lista de cards abaixo
+          assume — antes o celular só tinha essa tabela com rolagem
+          horizontal, o que era ruim de usar. */}
+      <div className="hidden overflow-x-auto rounded-2xl border border-brand-sand/70 bg-white lg:block">
+        <table className="w-full min-w-[860px] text-left text-sm">
+          <thead className="border-b border-brand-sand/70 bg-brand-cream-dark/40 text-xs uppercase tracking-wide text-brand-ink/50">
+            <tr>
+              <th className="px-4 py-3 font-medium">Foto</th>
+              <th className="px-4 py-3 font-medium">Raça</th>
+              <th className="px-4 py-3 font-medium">Categoria</th>
+              <th className="px-4 py-3 font-medium">Preço</th>
+              <th className="px-4 py-3 font-medium">Estoque</th>
+              <th className="px-4 py-3 font-medium">Status</th>
+              <th className="px-4 py-3 font-medium">Destaque</th>
+              <th className="px-4 py-3 font-medium text-right">Ações</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-brand-sand/60">
+            {products.map((product) => (
+              <tr key={product.id} className="align-middle">
+                <td className="px-4 py-3">
+                  <PhotoCell productId={product.id} name={product.name} mainImage={product.mainImage} />
+                </td>
+                <td className="px-4 py-3 font-medium text-brand-ink">{product.name}</td>
+                <td className="px-4 py-3 text-brand-ink/70">
+                  {product.categoryName ?? "—"}
+                </td>
+                <td className="px-4 py-3">
+                  <PriceCell productId={product.id} price={product.price} />
+                </td>
+                <td className="px-4 py-3">
+                  <StockCell productId={product.id} stock={product.stock} />
+                </td>
+                <td className="px-4 py-3">
                   <button
                     type="button"
                     disabled={isPending}
-                    onClick={() => handleDelete(product.id, product.name)}
-                    aria-label={`Excluir ${product.name}`}
-                    className="flex h-8 w-8 items-center justify-center rounded-full text-brand-ink/50 hover:bg-red-50 hover:text-red-600"
+                    onClick={() => handleToggleActive(product.id, !product.active)}
                   >
-                    <Trash2 className="h-4 w-4" aria-hidden="true" />
+                    <Badge tone={product.active ? "available" : "neutral"}>
+                      {product.active ? "Ativo" : "Inativo"}
+                    </Badge>
                   </button>
+                </td>
+                <td className="px-4 py-3">
+                  <button
+                    type="button"
+                    disabled={isPending}
+                    onClick={() => handleToggleFeatured(product.id, !product.featured)}
+                  >
+                    <Badge tone={product.featured ? "gold" : "neutral"}>
+                      {product.featured ? "Sim" : "Não"}
+                    </Badge>
+                  </button>
+                </td>
+                <td className="px-4 py-3">
+                  <div className="flex items-center justify-end gap-1">
+                    <Link
+                      href={`/admin/produtos/${product.id}`}
+                      aria-label={`Editar ${product.name}`}
+                      className="flex h-8 w-8 items-center justify-center rounded-full text-brand-green hover:bg-brand-green/10"
+                    >
+                      <Pencil className="h-4 w-4" aria-hidden="true" />
+                    </Link>
+                    <button
+                      type="button"
+                      disabled={isPending}
+                      onClick={() => handleDelete(product.id, product.name)}
+                      aria-label={`Excluir ${product.name}`}
+                      className="flex h-8 w-8 items-center justify-center rounded-full text-brand-ink/50 hover:bg-red-50 hover:text-red-600"
+                    >
+                      <Trash2 className="h-4 w-4" aria-hidden="true" />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Versão em cards: abaixo de lg (celular e tablet em pé). Mesmas
+          ações da tabela, só que empilhadas de um jeito fácil de tocar. */}
+      <div className="flex flex-col gap-3 lg:hidden">
+        {products.map((product) => (
+          <div key={product.id} className="rounded-2xl border border-brand-sand/70 bg-white p-3.5">
+            <div className="flex gap-3">
+              <PhotoCell productId={product.id} name={product.name} mainImage={product.mainImage} />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="truncate font-medium text-brand-ink">{product.name}</p>
+                    <p className="truncate text-xs text-brand-ink/50">
+                      {product.categoryName ?? "Sem categoria"}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-0.5">
+                    <Link
+                      href={`/admin/produtos/${product.id}`}
+                      aria-label={`Editar ${product.name}`}
+                      className="flex h-8 w-8 items-center justify-center rounded-full text-brand-green hover:bg-brand-green/10"
+                    >
+                      <Pencil className="h-4 w-4" aria-hidden="true" />
+                    </Link>
+                    <button
+                      type="button"
+                      disabled={isPending}
+                      onClick={() => handleDelete(product.id, product.name)}
+                      aria-label={`Excluir ${product.name}`}
+                      className="flex h-8 w-8 items-center justify-center rounded-full text-brand-ink/50 hover:bg-red-50 hover:text-red-600"
+                    >
+                      <Trash2 className="h-4 w-4" aria-hidden="true" />
+                    </button>
+                  </div>
                 </div>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+
+                <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5">
+                  <PriceCell productId={product.id} price={product.price} />
+                  <StockCell productId={product.id} stock={product.stock} />
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-3 flex items-center gap-2 border-t border-brand-sand/60 pt-3">
+              <button
+                type="button"
+                disabled={isPending}
+                onClick={() => handleToggleActive(product.id, !product.active)}
+              >
+                <Badge tone={product.active ? "available" : "neutral"}>
+                  {product.active ? "Ativo" : "Inativo"}
+                </Badge>
+              </button>
+              <button
+                type="button"
+                disabled={isPending}
+                onClick={() => handleToggleFeatured(product.id, !product.featured)}
+              >
+                <Badge tone={product.featured ? "gold" : "neutral"}>
+                  {product.featured ? "Em destaque" : "Sem destaque"}
+                </Badge>
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </>
   );
 }
 
