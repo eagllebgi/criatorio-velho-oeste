@@ -49,6 +49,14 @@ export function getStockStatus(product: {
 // ── Gestão interna (financeiro, baias, aves, postura) ──────────────────────
 // Estas entidades nunca aparecem no site público — uso exclusivo do admin.
 
+export type FormaPagamento = "pix" | "dinheiro" | "cartao";
+
+export const FORMA_PAGAMENTO_LABELS: Record<FormaPagamento, string> = {
+  pix: "Pix",
+  dinheiro: "Dinheiro",
+  cartao: "Cartão de crédito",
+};
+
 export interface Financeiro {
   id: string;
   tipo: "entrada" | "saida";
@@ -56,6 +64,9 @@ export interface Financeiro {
   categoria: string | null;
   valor: number;
   data: string;
+  /** Como o lançamento foi recebido/pago. Opcional — lançamentos antigos
+   * não têm essa informação registrada. */
+  formaPagamento: FormaPagamento | null;
   createdAt: string;
 }
 

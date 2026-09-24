@@ -119,6 +119,7 @@ export interface Database {
           categoria: string | null;
           valor: number;
           data: string;
+          forma_pagamento: "pix" | "dinheiro" | "cartao" | null;
           created_at: string;
         };
         Insert: {
@@ -128,6 +129,7 @@ export interface Database {
           categoria?: string | null;
           valor: number;
           data?: string;
+          forma_pagamento?: "pix" | "dinheiro" | "cartao" | null;
           created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["financeiro"]["Insert"]>;

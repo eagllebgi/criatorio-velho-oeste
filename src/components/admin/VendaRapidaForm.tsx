@@ -2,6 +2,7 @@
 
 import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import type { Product } from "@/lib/types/domain";
+import { FORMA_PAGAMENTO_LABELS } from "@/lib/types/domain";
 import { formatBRL, toPriceInputValue } from "@/lib/utils";
 import {
   createVendaRapida,
@@ -135,6 +136,24 @@ export function VendaRapidaForm({ products }: { products: Product[] }) {
             onChange={(e) => setPrecoUnit(e.target.value)}
             className="mt-1.5 w-full rounded-lg border border-brand-sand bg-white px-4 py-2.5 text-sm text-brand-ink outline-none focus:border-brand-green focus:ring-1 focus:ring-brand-green"
           />
+        </div>
+
+        <div>
+          <label htmlFor="venda-forma-pagamento" className="block text-sm font-medium text-brand-ink">
+            Forma de pagamento
+          </label>
+          <select
+            id="venda-forma-pagamento"
+            name="forma_pagamento"
+            defaultValue="pix"
+            className="mt-1.5 w-full rounded-lg border border-brand-sand bg-white px-4 py-2.5 text-sm text-brand-ink outline-none focus:border-brand-green focus:ring-1 focus:ring-brand-green"
+          >
+            {Object.entries(FORMA_PAGAMENTO_LABELS).map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
 

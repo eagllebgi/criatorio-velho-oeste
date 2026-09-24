@@ -16,7 +16,7 @@ export async function generateMetadata(
   props: PageProps<"/aves/[slug]">,
 ): Promise<Metadata> {
   const { slug } = await props.params;
-  const product = await getProductBySlug(slug);
+  const product = await getProductBySlug(slug, "ave");
   if (!product || product.productType !== "ave") return {};
 
   const title = `${product.name} — Ave Viva`;
@@ -38,7 +38,7 @@ export async function generateMetadata(
 export default async function AvePage(props: PageProps<"/aves/[slug]">) {
   const { slug } = await props.params;
   const [product, adminUser] = await Promise.all([
-    getProductBySlug(slug),
+    getProductBySlug(slug, "ave"),
     getAdminUser(),
   ]);
 

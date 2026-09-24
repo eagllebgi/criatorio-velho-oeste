@@ -73,6 +73,7 @@ export function mapFinanceiro(row: FinanceiroRow): Financeiro {
     categoria: row.categoria,
     valor: row.valor,
     data: row.data,
+    formaPagamento: row.forma_pagamento,
     createdAt: row.created_at,
   };
 }

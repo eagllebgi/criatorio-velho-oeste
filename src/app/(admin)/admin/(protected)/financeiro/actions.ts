@@ -3,9 +3,20 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { parsePriceInput } from "@/lib/utils";
+import type { FormaPagamento } from "@/lib/types/domain";
 
 export interface FinanceiroFormState {
   error: string | null;
+}
+
+const FORMAS_PAGAMENTO: FormaPagamento[] = ["pix", "dinheiro", "cartao"];
+
+/** Lê a forma de pagamento do formulário. Vem vazia/ausente em lançamentos
+ * antigos ou no formulário de Saída (onde o campo pode não fazer sentido) —
+ * nesse caso fica null, sem quebrar nada. */
+function parseFormaPagamento(formData: FormData): FormaPagamento | null {
+  const raw = String(formData.get("forma_pagamento") ?? "").trim();
+  return (FORMAS_PAGAMENTO as string[]).includes(raw) ? (raw as FormaPagamento) : null;
 }
 
 function revalidateFinanceiroPaths() {
@@ -22,6 +33,7 @@ export async function createTransacao(
   const categoria = String(formData.get("categoria") ?? "").trim() || null;
   const valor = parsePriceInput(String(formData.get("valor") ?? ""));
   const data = String(formData.get("data") ?? "").trim() || undefined;
+  const formaPagamento = parseFormaPagamento(formData);
 
   if (tipo !== "entrada" && tipo !== "saida") {
     return { error: "Tipo de lançamento inválido." };
@@ -35,6 +47,7 @@ export async function createTransacao(
     descricao,
     categoria,
     valor,
+    forma_pagamento: formaPagamento,
     ...(data ? { data } : {}),
   });
 
@@ -62,6 +75,7 @@ export async function createVendaRapida(
   const quantidade = Number(formData.get("quantidade"));
   const precoUnit = parsePriceInput(String(formData.get("precoUnit") ?? ""));
   const data = String(formData.get("data") ?? "").trim() || undefined;
+  const formaPagamento = parseFormaPagamento(formData);
 
   if (!productId) return { error: "Selecione um produto." };
   if (!Number.isFinite(quantidade) || quantidade <= 0) {
@@ -97,6 +111,7 @@ export async function createVendaRapida(
     descricao,
     categoria: "Venda de produto",
     valor: quantidade * precoUnit,
+    forma_pagamento: formaPagamento,
     ...(data ? { data } : {}),
   });
   if (insertError) return { error: insertError.message };

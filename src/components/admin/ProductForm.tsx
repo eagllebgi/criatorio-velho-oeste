@@ -10,9 +10,21 @@ const initialState: ProductFormState = { error: null };
  * escolheu "+ Nova categoria" em vez de uma categoria já existente. */
 const NOVA_CATEGORIA = "__nova__";
 
+/** Sentinel equivalente pro seletor de raça: escolher isso revela o campo de
+ * texto pra digitar o nome de uma raça nova. Ao contrário da categoria (que
+ * é uma tabela separada com FK), a raça é só o nome do próprio produto —
+ * então aqui não precisa de nenhum passo no servidor pra "resolver": o
+ * <select> e o <input> de texto nunca ficam com name="name" ativo ao mesmo
+ * tempo, então só um dos dois é enviado no formulário. */
+const NOVA_RACA = "__nova__";
+
 interface ProductFormProps {
   product?: Product;
   categories: Category[];
+  /** Nomes de raças já cadastradas no catálogo (sem repetir), pra reaproveitar
+   * em vez de digitar tudo de novo — útil principalmente quando a mesma raça
+   * vai virar tanto um anúncio de Ovo quanto de Ave. */
+  existingNames: string[];
   action: (state: ProductFormState, formData: FormData) => Promise<ProductFormState>;
   submitLabel: string;
 }
@@ -20,30 +32,26 @@ interface ProductFormProps {
 const inputClass =
   "mt-1.5 w-full rounded-lg border border-brand-sand bg-white px-4 py-2.5 text-sm text-brand-ink outline-none focus:border-brand-green focus:ring-1 focus:ring-brand-green";
 
-export function ProductForm({ product, categories, action, submitLabel }: ProductFormProps) {
+export function ProductForm({
+  product,
+  categories,
+  existingNames,
+  action,
+  submitLabel,
+}: ProductFormProps) {
   const [state, formAction, pending] = useActionState(action, initialState);
   const [categoryValue, setCategoryValue] = useState(product?.categoryId ?? "");
+  const [racaValue, setRacaValue] = useState(() => {
+    if (!product) return NOVA_RACA;
+    return existingNames.includes(product.name) ? product.name : NOVA_RACA;
+  });
 
   return (
     <form action={formAction} className="max-w-3xl space-y-6">
       <div className="grid gap-5 sm:grid-cols-2">
         <div className="sm:col-span-2">
-          <label htmlFor="name" className="block text-sm font-medium text-brand-ink">
-            Nome da raça
-          </label>
-          <input
-            id="name"
-            name="name"
-            type="text"
-            required
-            defaultValue={product?.name}
-            className={inputClass}
-          />
-        </div>
-
-        <div>
           <label htmlFor="product_type" className="block text-sm font-medium text-brand-ink">
-            Tipo
+            Tipo do anúncio
           </label>
           <select
             id="product_type"
@@ -54,6 +62,44 @@ export function ProductForm({ product, categories, action, submitLabel }: Produc
             <option value="ovo">Ovo fértil</option>
             <option value="ave">Ave viva</option>
           </select>
+          <p className="mt-1.5 text-xs text-brand-ink/50">
+            A mesma raça pode ter um anúncio de Ovo e outro de Ave separadamente — é só cadastrar
+            os dois com o mesmo nome, escolhendo esse nome na lista abaixo da segunda vez.
+          </p>
+        </div>
+
+        <div className="sm:col-span-2">
+          <label htmlFor="raca_nome" className="block text-sm font-medium text-brand-ink">
+            Raça
+          </label>
+          <select
+            id="raca_nome"
+            value={racaValue}
+            onChange={(e) => setRacaValue(e.target.value)}
+            className={inputClass}
+            {...(racaValue !== NOVA_RACA ? { name: "name" } : {})}
+          >
+            <option value={NOVA_RACA}>+ Nova raça</option>
+            {existingNames.map((n) => (
+              <option key={n} value={n}>
+                {n}
+              </option>
+            ))}
+          </select>
+          {/* Raça nova entra direto aqui, igual ao padrão de "+ Nova
+              categoria" abaixo — sem precisar de outra tela antes. */}
+          {racaValue === NOVA_RACA && (
+            <input
+              id="name"
+              name="name"
+              type="text"
+              required
+              autoFocus
+              placeholder="Ex: Ayam Cemani"
+              defaultValue={product && !existingNames.includes(product.name) ? product.name : ""}
+              className={`${inputClass} mt-2`}
+            />
+          )}
         </div>
 
         <div>

@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { getAllCategoriesAdmin, getProductByIdAdmin } from "@/lib/data/admin";
+import { getAllCategoriesAdmin, getAllProductsAdmin, getProductByIdAdmin } from "@/lib/data/admin";
 import { createClient } from "@/lib/supabase/server";
 import { ProductForm } from "@/components/admin/ProductForm";
 import { ProductImageManager } from "@/components/admin/ProductImageManager";
@@ -11,12 +11,20 @@ export default async function EditarProdutoPage(
   props: PageProps<"/admin/produtos/[id]">,
 ) {
   const { id } = await props.params;
-  const [product, categories] = await Promise.all([
+  const [product, categories, products] = await Promise.all([
     getProductByIdAdmin(id),
     getAllCategoriesAdmin(),
+    getAllProductsAdmin(),
   ]);
 
   if (!product) notFound();
+
+  // Nomes de outras raças já cadastradas (exclui a própria, senão ela
+  // apareceria duplicada — uma vez como opção selecionável e outra como
+  // valor atual já preenchido).
+  const existingNames = Array.from(
+    new Set(products.filter((p) => p.id !== id).map((p) => p.name)),
+  ).sort((a, b) => a.localeCompare(b, "pt-BR"));
 
   const supabase = await createClient();
   const { data: imageRows } = await supabase
@@ -51,6 +59,7 @@ export default async function EditarProdutoPage(
         <ProductForm
           product={product}
           categories={categories}
+          existingNames={existingNames}
           action={boundUpdate}
           submitLabel="Salvar alterações"
         />

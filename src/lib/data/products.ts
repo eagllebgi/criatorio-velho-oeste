@@ -69,17 +69,27 @@ export async function getFeaturedProducts(limit = 8): Promise<Product[]> {
   );
 }
 
-export async function getProductBySlug(slug: string): Promise<Product | null> {
+/** Busca um produto pelo slug. Como o slug agora é único só dentro de cada
+ * tipo (ovo/ave — ver migration 0005), passe `type` sempre que souber qual é
+ * (as páginas /ovos/[slug] e /aves/[slug] sempre sabem) pra evitar ambiguidade
+ * quando a mesma raça existe cadastrada como Ovo e como Ave com o mesmo nome. */
+export async function getProductBySlug(
+  slug: string,
+  type?: ProductType,
+): Promise<Product | null> {
   return safeQuery(
     "getProductBySlug",
     async () => {
       const supabase = await createClient();
-      const { data, error } = await supabase
+      let query = supabase
         .from("products")
         .select(PRODUCT_SELECT)
         .eq("slug", slug)
-        .eq("active", true)
-        .maybeSingle();
+        .eq("active", true);
+
+      if (type) query = query.eq("product_type", type);
+
+      const { data, error } = await query.maybeSingle();
 
       if (error || !data) return null;
       return mapProduct(data);

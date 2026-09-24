@@ -98,7 +98,10 @@ export async function createProduct(
 
   if (error) {
     return {
-      error: error.code === "23505" ? "Já existe uma raça com esse nome." : error.message,
+      error:
+        error.code === "23505"
+          ? "Já existe uma raça com esse nome e esse tipo (Ovo/Ave)."
+          : error.message,
     };
   }
 
