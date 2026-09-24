@@ -11,7 +11,13 @@ export function Header() {
       <div className="container-site flex h-20 items-center justify-between py-3">
         <Logo />
 
-        <nav className="hidden items-center gap-7 lg:flex" aria-label="Principal">
+        {/* Só aparece a partir de xl (1280px) — com 7 itens de menu, o logo
+            oficial (mais largo que um logo comum) e o botão "Ver ovos
+            disponíveis" juntos, "lg" (1024px) não é largura suficiente: o
+            menu ficava sobrepondo o logo em notebooks comuns (1024–1279px).
+            Nessa faixa, cai pro menu hambúrguer (ver MobileMenu, mesmo
+            breakpoint). */}
+        <nav className="hidden items-center gap-6 xl:flex" aria-label="Principal">
           {siteConfig.nav.map((item) => (
             <Link
               key={item.href}

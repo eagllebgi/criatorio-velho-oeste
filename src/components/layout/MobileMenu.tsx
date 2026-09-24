@@ -80,7 +80,10 @@ export function MobileMenu() {
   );
 
   return (
-    <div className="lg:hidden">
+    // Mesmo breakpoint do <nav> desktop em Header.tsx (xl) — os dois têm que
+    // trocar exatamente juntos, senão fica uma faixa de largura sem nenhum
+    // dos dois (ou com os dois ao mesmo tempo).
+    <div className="xl:hidden">
       <button
         type="button"
         onClick={() => setOpen(true)}
