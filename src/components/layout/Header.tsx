@@ -13,20 +13,24 @@ export function Header() {
 
         {/* Só aparece a partir de xl (1280px) — com 7 itens de menu, o logo
             oficial (mais largo que um logo comum) e o botão "Ver ovos
-            disponíveis" juntos, "lg" (1024px) não é largura suficiente: o
-            menu ficava sobrepondo o logo em notebooks comuns (1024–1279px).
-            Nessa faixa, cai pro menu hambúrguer (ver MobileMenu, mesmo
-            breakpoint). */}
-        <nav className="hidden items-center gap-6 xl:flex" aria-label="Principal">
-          {siteConfig.nav.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className="text-sm font-medium text-brand-ink/80 transition-colors hover:text-brand-green"
-            >
-              {item.label}
-            </Link>
-          ))}
+            disponíveis" juntos, é muita coisa pra uma linha só. Abaixo disso
+            cai pro menu hambúrguer (ver MobileMenu, mesmo breakpoint).
+            Duas folgas extras pra não voltar a sobrepor: "Início" não entra
+            aqui (o logo já leva pra home, fica redundante) e os itens mais
+            longos usam a versão curta (shortLabel) — o menu mobile e o
+            rodapé continuam com o nome completo, lá sobra espaço. */}
+        <nav className="hidden items-center gap-5 xl:flex" aria-label="Principal">
+          {siteConfig.nav
+            .filter((item) => item.href !== "/")
+            .map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className="whitespace-nowrap text-sm font-medium text-brand-ink/80 transition-colors hover:text-brand-green"
+              >
+                {"shortLabel" in item ? item.shortLabel : item.label}
+              </Link>
+            ))}
         </nav>
 
         <div className="flex items-center gap-2 sm:gap-3">

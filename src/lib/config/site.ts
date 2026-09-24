@@ -38,11 +38,15 @@ export const siteConfig = {
   // não define um limite próprio (low_stock_threshold).
   defaultLowStockThreshold: 5,
 
+  // shortLabel: versão mais curta usada só no menu do cabeçalho (desktop),
+  // onde o espaço é apertado (logo + 7 itens + botão + carrinho, tudo numa
+  // linha só). O menu mobile e o rodapé continuam usando o "label" completo,
+  // onde sobra espaço de sobra.
   nav: [
     { label: "Início", href: "/" },
-    { label: "Ovos Férteis", href: "/ovos" },
-    { label: "Aves Vivas", href: "/aves" },
-    { label: "Sobre o Criatório", href: "/#sobre" },
+    { label: "Ovos Férteis", shortLabel: "Ovos", href: "/ovos" },
+    { label: "Aves Vivas", shortLabel: "Aves", href: "/aves" },
+    { label: "Sobre o Criatório", shortLabel: "Sobre", href: "/#sobre" },
     { label: "Como Funciona", href: "/#como-funciona" },
     { label: "Dúvidas", href: "/#duvidas" },
     { label: "Contato", href: "/#contato" },
