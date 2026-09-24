@@ -148,6 +148,7 @@ export interface Database {
           destino_padrao: "venda" | "choc" | "reservado" | "descarte";
           observacoes: string | null;
           foto_url: string | null;
+          qr_token: string;
           created_at: string;
           updated_at: string;
         };
@@ -163,6 +164,7 @@ export interface Database {
           destino_padrao?: "venda" | "choc" | "reservado" | "descarte";
           observacoes?: string | null;
           foto_url?: string | null;
+          qr_token?: string;
           created_at?: string;
           updated_at?: string;
         };
@@ -297,7 +299,27 @@ export interface Database {
       };
     };
     Views: Record<string, never>;
-    Functions: Record<string, never>;
+    Functions: {
+      // Funções públicas (SECURITY DEFINER) usadas pela tela de coleta por QR
+      // Code (/coletar/[token]) — veja 0007_qr_postura.sql.
+      coletar_baia_info: {
+        Args: { p_qr_token: string };
+        Returns: {
+          nome: string;
+          especie: string;
+          destino_padrao: "venda" | "choc" | "reservado" | "descarte";
+          preco_ovo: number | null;
+        }[];
+      };
+      coletar_registrar_postura: {
+        Args: {
+          p_qr_token: string;
+          p_quantidade: number;
+          p_destino: "venda" | "choc" | "reservado" | "descarte";
+        };
+        Returns: { codigo: string; baia_nome: string }[];
+      };
+    };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
   };

@@ -87,6 +87,9 @@ export interface Baia {
   /** Foto customizada da baia/espécie (enviada pelo usuário). Quando null,
    * os cards caem no emoji padrão da espécie (emojiForEspecie). */
   fotoUrl: string | null;
+  /** Código usado no link/QR Code de coleta de ovos (/coletar/<qrToken>) —
+   * gerado sozinho pelo banco, nunca muda depois de criado. */
+  qrToken: string;
   createdAt: string;
   updatedAt: string;
   /** Quantidade de aves atualmente vinculadas a essa baia — calculada a

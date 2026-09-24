@@ -11,6 +11,7 @@ import { cn, formatBRL } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import { buildBaiaImagePath } from "@/lib/storage";
 import { ImageCropModal } from "@/components/admin/ImageCropModal";
+import { BaiaQrCode } from "@/components/admin/BaiaQrCode";
 import {
   createBaia,
   createObservacao,
@@ -42,7 +43,15 @@ const destinoTone: Record<Baia["destinoPadrao"], BadgeTone> = {
   descarte: "out",
 };
 
-export function BaiasManager({ baias }: { baias: Baia[] }) {
+export function BaiasManager({
+  baias,
+  qrDataUrls,
+}: {
+  baias: Baia[];
+  /** PNG (data URI) do QR Code de coleta de cada baia, já gerado no servidor
+   * (page.tsx) — mapeado por baia.id. */
+  qrDataUrls: Record<string, string>;
+}) {
   const [novaOpen, setNovaOpen] = useState(false);
   const [editing, setEditing] = useState<Baia | null>(null);
   const [posturaFor, setPosturaFor] = useState<Baia | null>(null);
@@ -88,18 +97,27 @@ export function BaiasManager({ baias }: { baias: Baia[] }) {
                     </p>
                   </div>
                 </div>
-                {/* Excluir fica só aqui, pequeno e isolado de propósito — é a
-                    única ação destrutiva do card. Editar virou um botão
+                {/* Cantinho superior direito do card: QR Code de coleta e
+                    excluir (única ação destrutiva) ficam juntos aqui,
+                    pequenos e isolados de propósito. Editar virou um botão
                     completo lá embaixo, mais fácil de acertar o toque. */}
-                <button
-                  type="button"
-                  disabled={isPending}
-                  onClick={() => handleDelete(baia)}
-                  aria-label={`Excluir ${baia.nome}`}
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-brand-ink/50 hover:bg-red-50 hover:text-red-600"
-                >
-                  <Trash2 className="h-4 w-4" aria-hidden="true" />
-                </button>
+                <div className="flex shrink-0 items-center gap-1">
+                  <BaiaQrCode
+                    nome={baia.nome}
+                    codigo={baia.codigo}
+                    dataUrl={qrDataUrls[baia.id]}
+                    className="h-8 w-8 border-transparent shadow-none hover:border-brand-green"
+                  />
+                  <button
+                    type="button"
+                    disabled={isPending}
+                    onClick={() => handleDelete(baia)}
+                    aria-label={`Excluir ${baia.nome}`}
+                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-brand-ink/50 hover:bg-red-50 hover:text-red-600"
+                  >
+                    <Trash2 className="h-4 w-4" aria-hidden="true" />
+                  </button>
+                </div>
               </div>
 
               <div className="mt-3 flex flex-wrap items-center gap-1.5">

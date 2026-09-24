@@ -51,3 +51,12 @@ body {
     @apply mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8;
   }
 }
+
+/* Usado na impressão dos QR Codes de coleta (/admin/baias/qrcodes): esconde
+ * menu, cabeçalho e qualquer botão que não deve sair no papel — cada
+ * elemento marcado com essa classe simplesmente some ao imprimir. */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+}

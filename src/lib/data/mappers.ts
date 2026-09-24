@@ -99,6 +99,7 @@ export function mapBaia(row: BaiaRowWithRelations): Baia {
     destinoPadrao: row.destino_padrao,
     observacoes: row.observacoes,
     fotoUrl: row.foto_url,
+    qrToken: row.qr_token,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     totalAves: aves.length,

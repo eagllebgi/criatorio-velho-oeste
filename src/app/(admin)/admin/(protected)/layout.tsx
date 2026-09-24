@@ -42,7 +42,7 @@ export default async function ProtectedAdminLayout({
     <div className="flex min-h-screen flex-col lg:flex-row">
       <AdminSidebar />
       <div className="min-w-0 flex-1">
-        <header className="flex items-center justify-between border-b border-brand-sand/70 bg-white px-4 py-3 sm:px-6 sm:py-4">
+        <header className="no-print flex items-center justify-between border-b border-brand-sand/70 bg-white px-4 py-3 sm:px-6 sm:py-4">
           <span className="truncate text-xs text-brand-ink/60 sm:text-sm">
             Conectado como <span className="font-medium text-brand-ink">{user.email}</span>
           </span>

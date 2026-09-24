@@ -29,7 +29,7 @@ export function AdminSidebar() {
 
   return (
     <>
-      <aside className="hidden w-64 shrink-0 flex-col border-r border-brand-sand/70 bg-white lg:flex">
+      <aside className="no-print hidden w-64 shrink-0 flex-col border-r border-brand-sand/70 bg-white lg:flex">
         <div className="border-b border-brand-sand/70 px-6 py-5">
           <span className="font-serif text-lg font-semibold text-brand-green">
             Velho Oeste
@@ -81,7 +81,7 @@ export function AdminSidebar() {
         </div>
       </aside>
 
-      <nav className="flex gap-1 overflow-x-auto border-b border-brand-sand/70 bg-white px-3 py-2 lg:hidden">
+      <nav className="no-print flex gap-1 overflow-x-auto border-b border-brand-sand/70 bg-white px-3 py-2 lg:hidden">
         {navItems.map((item) => {
           const active = item.exact
             ? pathname === item.href
