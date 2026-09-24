@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/Badge";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import { buildProductImagePath } from "@/lib/storage";
+import { ImageCropModal } from "@/components/admin/ImageCropModal";
 import { parsePriceInput, toPriceInputValue } from "@/lib/utils";
 import {
   deleteProduct,
@@ -359,23 +360,28 @@ function PhotoCell({
   mainImage: string | null;
 }) {
   const [preview, setPreview] = useState<string | null>(mainImage);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  async function handleFile(files: FileList | null) {
+  function handleFile(files: FileList | null) {
     const file = files?.[0];
     if (!file) return;
+    setPendingFile(file);
+  }
 
+  async function handleCropped(blob: Blob) {
+    setPendingFile(null);
     setUploading(true);
     setError(null);
     const supabase = createClient();
 
     try {
-      const path = buildProductImagePath(productId, file.name);
+      const path = buildProductImagePath(productId, "foto.jpg");
       const { error: uploadError } = await supabase.storage
         .from(BUCKET)
-        .upload(path, file, { upsert: false });
+        .upload(path, blob, { upsert: false, contentType: "image/jpeg" });
       if (uploadError) throw uploadError;
 
       const { data: publicUrlData } = supabase.storage.from(BUCKET).getPublicUrl(path);
@@ -402,36 +408,51 @@ function PhotoCell({
   }
 
   return (
-    <label
-      title="Clique para trocar a foto principal"
-      className="group relative block h-12 w-12 cursor-pointer overflow-hidden rounded-lg bg-brand-sand"
-    >
-      {preview ? (
-        <Image src={preview} alt={name} fill sizes="48px" className="object-cover" />
-      ) : (
-        <div className="flex h-full w-full items-center justify-center text-brand-brown/30">
-          <ImageOff className="h-4 w-4" aria-hidden="true" />
-        </div>
-      )}
-      <div className="absolute inset-0 flex items-center justify-center bg-black/0 transition-colors group-hover:bg-black/30">
-        {uploading ? (
-          <Loader2 className="h-4 w-4 animate-spin text-white" aria-hidden="true" />
+    <>
+      <label
+        title="Clique para trocar a foto principal"
+        className="group relative block h-12 w-12 cursor-pointer overflow-hidden rounded-lg bg-brand-sand"
+      >
+        {preview ? (
+          <Image src={preview} alt={name} fill sizes="48px" className="object-cover" />
         ) : (
-          <Pencil className="h-3.5 w-3.5 text-white opacity-0 transition-opacity group-hover:opacity-100" aria-hidden="true" />
+          <div className="flex h-full w-full items-center justify-center text-brand-brown/30">
+            <ImageOff className="h-4 w-4" aria-hidden="true" />
+          </div>
         )}
-      </div>
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*"
-        className="sr-only"
-        onChange={(e) => handleFile(e.target.files)}
-      />
-      {error && (
-        <span className="absolute left-1/2 top-full z-10 mt-1 w-max max-w-[10rem] -translate-x-1/2 rounded-md bg-red-600 px-2 py-1 text-[0.65rem] text-white">
-          {error}
-        </span>
+        <div className="absolute inset-0 flex items-center justify-center bg-black/0 transition-colors group-hover:bg-black/30">
+          {uploading ? (
+            <Loader2 className="h-4 w-4 animate-spin text-white" aria-hidden="true" />
+          ) : (
+            <Pencil className="h-3.5 w-3.5 text-white opacity-0 transition-opacity group-hover:opacity-100" aria-hidden="true" />
+          )}
+        </div>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          className="sr-only"
+          onChange={(e) => {
+            handleFile(e.target.files);
+            e.target.value = "";
+          }}
+        />
+        {error && (
+          <span className="absolute left-1/2 top-full z-10 mt-1 w-max max-w-[10rem] -translate-x-1/2 rounded-md bg-red-600 px-2 py-1 text-[0.65rem] text-white">
+            {error}
+          </span>
+        )}
+      </label>
+
+      {pendingFile && (
+        <ImageCropModal
+          file={pendingFile}
+          aspect={1}
+          title="Ajustar foto da raça"
+          onCancel={() => setPendingFile(null)}
+          onCropped={handleCropped}
+        />
       )}
-    </label>
+    </>
   );
 }

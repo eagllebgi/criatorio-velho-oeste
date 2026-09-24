@@ -5,6 +5,7 @@ import Image from "next/image";
 import { Star, Trash2, Upload, Loader2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { buildProductImagePath } from "@/lib/storage";
+import { ImageCropModal } from "@/components/admin/ImageCropModal";
 import { cn } from "@/lib/utils";
 
 interface ImageItem {
@@ -26,48 +27,60 @@ export function ProductImageManager({
   const supabase = createClient();
   const [images, setImages] = useState<ImageItem[]>(initialImages);
   const [main, setMain] = useState<string | null>(mainImage);
-  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Fila de arquivos aguardando recorte — quando o usuário escolhe várias
+  // fotos de uma vez, cada uma passa pelo editor de recorte, uma de cada vez.
+  // "uploading" é só derivado da fila: enquanto sobrar algo nela (esperando
+  // recorte ou sendo enviado), o botão mostra "Enviando...".
+  const [queue, setQueue] = useState<File[]>([]);
+  const uploading = queue.length > 0;
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  async function handleUpload(files: FileList | null) {
+  function handleUpload(files: FileList | null) {
     if (!files || files.length === 0) return;
-    setUploading(true);
+    setError(null);
+    setQueue(Array.from(files));
+  }
+
+  async function handleCropped(blob: Blob) {
     setError(null);
 
     try {
-      for (const file of Array.from(files)) {
-        const path = buildProductImagePath(productId, file.name);
-        const { error: uploadError } = await supabase.storage
-          .from(BUCKET)
-          .upload(path, file, { upsert: false });
+      const path = buildProductImagePath(productId, "foto.jpg");
+      const { error: uploadError } = await supabase.storage
+        .from(BUCKET)
+        .upload(path, blob, { upsert: false, contentType: "image/jpeg" });
 
-        if (uploadError) throw uploadError;
+      if (uploadError) throw uploadError;
 
-        const { data: publicUrlData } = supabase.storage.from(BUCKET).getPublicUrl(path);
-        const url = publicUrlData.publicUrl;
+      const { data: publicUrlData } = supabase.storage.from(BUCKET).getPublicUrl(path);
+      const url = publicUrlData.publicUrl;
 
-        const { data: inserted, error: insertError } = await supabase
-          .from("product_images")
-          .insert({ product_id: productId, image_url: url, display_order: images.length })
-          .select("id, image_url")
-          .single();
+      const { data: inserted, error: insertError } = await supabase
+        .from("product_images")
+        .insert({ product_id: productId, image_url: url, display_order: images.length })
+        .select("id, image_url")
+        .single();
 
-        if (insertError) throw insertError;
+      if (insertError) throw insertError;
 
-        setImages((prev) => [...prev, { id: inserted.id, url: inserted.image_url }]);
+      setImages((prev) => [...prev, { id: inserted.id, url: inserted.image_url }]);
 
-        if (!main) {
-          await supabase.from("products").update({ main_image: url }).eq("id", productId);
-          setMain(url);
-        }
+      if (!main) {
+        await supabase.from("products").update({ main_image: url }).eq("id", productId);
+        setMain(url);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Não foi possível enviar a imagem.");
     } finally {
-      setUploading(false);
+      setQueue((prev) => prev.slice(1));
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
+  }
+
+  function handleCancelCurrent() {
+    setQueue((prev) => prev.slice(1));
+    if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
   async function handleSetMain(url: string) {
@@ -164,12 +177,26 @@ export function ProductImageManager({
             accept="image/*"
             multiple
             className="sr-only"
-            onChange={(e) => handleUpload(e.target.files)}
+            onChange={(e) => {
+              handleUpload(e.target.files);
+              e.target.value = "";
+            }}
           />
         </label>
       </div>
 
       {error && <p className="text-sm text-red-600">{error}</p>}
+
+      {queue.length > 0 && (
+        <ImageCropModal
+          key={queue[0].name + queue[0].lastModified}
+          file={queue[0]}
+          aspect={1}
+          title={queue.length > 1 ? `Ajustar foto (${queue.length} restantes)` : "Ajustar foto"}
+          onCancel={handleCancelCurrent}
+          onCropped={handleCropped}
+        />
+      )}
     </div>
   );
 }

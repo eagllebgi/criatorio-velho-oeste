@@ -10,6 +10,7 @@ import { Sheet } from "@/components/ui/Sheet";
 import { cn, formatBRL } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import { buildBaiaImagePath } from "@/lib/storage";
+import { ImageCropModal } from "@/components/admin/ImageCropModal";
 import {
   createBaia,
   createObservacao,
@@ -179,28 +180,36 @@ export function BaiasManager({ baias }: { baias: Baia[] }) {
  * (AdminProductTable.tsx) e do AveFotoAvatar em AvesManager.tsx. */
 function BaiaFotoAvatar({ baia }: { baia: Baia }) {
   const [preview, setPreview] = useState<string | null>(baia.fotoUrl);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  async function handleFile(files: FileList | null) {
+  function handleFile(files: FileList | null) {
     const file = files?.[0];
     if (!file) return;
+    setPendingFile(file);
+  }
 
+  async function handleCropped(blob: Blob) {
+    setPendingFile(null);
     setUploading(true);
     setError(null);
     const supabase = createClient();
 
     try {
-      const path = buildBaiaImagePath(baia.id, file.name);
+      const path = buildBaiaImagePath(baia.id, "foto.jpg");
       const { error: uploadError } = await supabase.storage
         .from(BUCKET)
-        .upload(path, file, { upsert: false });
+        .upload(path, blob, { upsert: false, contentType: "image/jpeg" });
       if (uploadError) throw uploadError;
 
       const { data: publicUrlData } = supabase.storage.from(BUCKET).getPublicUrl(path);
       const url = publicUrlData.publicUrl;
 
+      // Atualiza só a foto da baia — a propagação pra todas as aves
+      // vinculadas (plantel) acontece sozinha no banco (ver migration
+      // 0006_fotos_cascata.sql), sem precisar de nenhuma chamada extra aqui.
       const { error: updateError } = await supabase
         .from("baias")
         .update({ foto_url: url })
@@ -217,38 +226,53 @@ function BaiaFotoAvatar({ baia }: { baia: Baia }) {
   }
 
   return (
-    <label
-      title="Clique para trocar a foto"
-      className="group relative flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-full bg-brand-cream-dark/50 text-lg"
-    >
-      {preview ? (
-        <Image src={preview} alt={baia.nome} fill sizes="40px" className="object-cover" />
-      ) : (
-        <span>{emojiForEspecie(baia.especie)}</span>
-      )}
-      <div className="absolute inset-0 flex items-center justify-center bg-black/0 transition-colors group-hover:bg-black/30">
-        {uploading ? (
-          <Loader2 className="h-3.5 w-3.5 animate-spin text-white" aria-hidden="true" />
+    <>
+      <label
+        title="Clique para trocar a foto"
+        className="group relative flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-full bg-brand-cream-dark/50 text-lg"
+      >
+        {preview ? (
+          <Image src={preview} alt={baia.nome} fill sizes="40px" className="object-cover" />
         ) : (
-          <Pencil
-            className="h-3 w-3 text-white opacity-0 transition-opacity group-hover:opacity-100"
-            aria-hidden="true"
-          />
+          <span>{emojiForEspecie(baia.especie)}</span>
         )}
-      </div>
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*"
-        className="sr-only"
-        onChange={(e) => handleFile(e.target.files)}
-      />
-      {error && (
-        <span className="absolute left-1/2 top-full z-10 mt-1 w-max max-w-[9rem] -translate-x-1/2 rounded-md bg-red-600 px-2 py-1 text-[0.65rem] text-white">
-          {error}
-        </span>
+        <div className="absolute inset-0 flex items-center justify-center bg-black/0 transition-colors group-hover:bg-black/30">
+          {uploading ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin text-white" aria-hidden="true" />
+          ) : (
+            <Pencil
+              className="h-3 w-3 text-white opacity-0 transition-opacity group-hover:opacity-100"
+              aria-hidden="true"
+            />
+          )}
+        </div>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          className="sr-only"
+          onChange={(e) => {
+            handleFile(e.target.files);
+            e.target.value = "";
+          }}
+        />
+        {error && (
+          <span className="absolute left-1/2 top-full z-10 mt-1 w-max max-w-[9rem] -translate-x-1/2 rounded-md bg-red-600 px-2 py-1 text-[0.65rem] text-white">
+            {error}
+          </span>
+        )}
+      </label>
+
+      {pendingFile && (
+        <ImageCropModal
+          file={pendingFile}
+          aspect={1}
+          title="Ajustar foto da baia"
+          onCancel={() => setPendingFile(null)}
+          onCropped={handleCropped}
+        />
       )}
-    </label>
+    </>
   );
 }
 

@@ -22,7 +22,7 @@ export default async function AdminProdutosPage() {
           className="inline-flex items-center gap-2 rounded-full bg-brand-green px-5 py-2.5 text-sm font-medium text-brand-cream hover:bg-brand-green-dark"
         >
           <Plus className="h-4 w-4" aria-hidden="true" />
-          Adicionar nova raça
+          Adicionar Novo Item
         </Link>
       </div>
 
