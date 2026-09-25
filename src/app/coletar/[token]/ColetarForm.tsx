@@ -1,27 +1,28 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { Egg, Check, Loader2 } from "lucide-react";
+import { Egg, Check, Loader2, Plus } from "lucide-react";
 import { emojiForEspecie, type Destino } from "@/lib/types/domain";
 import { cn } from "@/lib/utils";
 import { registrarColeta, type ColetaState } from "./actions";
 
-const DESTINO_OPTIONS: { value: Destino; label: string }[] = [
-  { value: "venda", label: "Venda" },
-  { value: "choc", label: "Chocadeira" },
-  { value: "reservado", label: "Reservado" },
-  { value: "descarte", label: "Descarte" },
-];
+const DESTINO_LABELS: Record<Destino, string> = {
+  venda: "Venda",
+  choc: "Chocadeira",
+  reservado: "Reservado",
+  descarte: "Descarte",
+};
 
 const initialState: ColetaState = { error: null, success: null };
 
 /**
  * Tela de coleta que abre ao escanear o QR Code de uma baia
  * (/coletar/[token]) — pensada pra usar no celular/tablet, no meio do
- * galinheiro, sem precisar logar em nada. Nome e espécie vêm prontos do
- * servidor (já é a baia certa, só de confirmar visualmente); o camponês só
- * digita a quantidade e confirma o destino, já vindo pré-selecionado com o
- * padrão cadastrado na baia.
+ * galinheiro. Só abre pra quem já está logado (mesma conta do painel admin
+ * — ver page.tsx). Nome e espécie vêm prontos do servidor (já é a baia
+ * certa, só de confirmar visualmente); dá pra lançar quantidades diferentes
+ * pra destinos diferentes numa coleta só (ex: "10 pra chocadeira, 20 pra
+ * venda"), igual ao formulário de postura do painel.
  */
 export function ColetarForm({
   token,
@@ -61,6 +62,11 @@ export function ColetarForm({
   );
 }
 
+interface ColetaItemDraft {
+  destino: Destino;
+  quantidade: string;
+}
+
 function ColetaFormInner({
   token,
   destinoPadrao,
@@ -74,7 +80,25 @@ function ColetaFormInner({
     registrarColeta.bind(null, token),
     initialState,
   );
-  const [destino, setDestino] = useState<Destino>(destinoPadrao);
+  const [itens, setItens] = useState<ColetaItemDraft[]>([
+    { destino: destinoPadrao, quantidade: "" },
+  ]);
+
+  const itensJson = JSON.stringify(
+    itens.map((item) => ({ destino: item.destino, quantidade: Number(item.quantidade) || 0 })),
+  );
+
+  function updateItem(index: number, patch: Partial<ColetaItemDraft>) {
+    setItens((prev) => prev.map((item, i) => (i === index ? { ...item, ...patch } : item)));
+  }
+
+  function addItem() {
+    setItens((prev) => [...prev, { destino: "venda", quantidade: "" }]);
+  }
+
+  function removeItem(index: number) {
+    setItens((prev) => prev.filter((_, i) => i !== index));
+  }
 
   if (state.success) {
     return (
@@ -84,7 +108,8 @@ function ColetaFormInner({
         </div>
         <p className="font-medium text-brand-ink">Coleta registrada!</p>
         <p className="text-sm text-brand-ink/60">
-          Lote {state.success.codigo} — {state.success.baiaNome}
+          Lote{state.success.codigos.length > 1 ? "s" : ""} {state.success.codigos.join(", ")} —{" "}
+          {state.success.baiaNome}
         </p>
         <button
           type="button"
@@ -100,45 +125,71 @@ function ColetaFormInner({
   return (
     <form
       action={formAction}
-      className="space-y-5 rounded-2xl border border-brand-sand bg-white p-5"
+      className="space-y-4 rounded-2xl border border-brand-sand bg-white p-5"
     >
-      <div>
-        <label htmlFor="quantidade" className="block text-sm font-medium text-brand-ink">
-          Quantos ovos?
-        </label>
-        <input
-          id="quantidade"
-          name="quantidade"
-          type="number"
-          inputMode="numeric"
-          min={1}
-          required
-          autoFocus
-          className="mt-1.5 w-full rounded-xl border border-brand-sand bg-white px-4 py-3.5 text-center text-3xl font-semibold text-brand-ink outline-none focus:border-brand-green focus:ring-1 focus:ring-brand-green"
-        />
+      <input type="hidden" name="itens" value={itensJson} />
+
+      <div className="space-y-3">
+        {itens.map((item, index) => (
+          <div key={index} className="rounded-xl border border-brand-sand p-3">
+            <div className="flex items-center justify-between gap-2">
+              <label
+                htmlFor={`quantidade-${index}`}
+                className="text-sm font-medium text-brand-ink"
+              >
+                {itens.length > 1 ? `Quantidade #${index + 1}` : "Quantos ovos?"}
+              </label>
+              {itens.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => removeItem(index)}
+                  aria-label="Remover este destino"
+                  className="text-xs font-medium text-red-600 hover:underline"
+                >
+                  Remover
+                </button>
+              )}
+            </div>
+            <input
+              id={`quantidade-${index}`}
+              type="number"
+              inputMode="numeric"
+              min={1}
+              required
+              autoFocus={index === 0}
+              value={item.quantidade}
+              onChange={(e) => updateItem(index, { quantidade: e.target.value })}
+              className="mt-1.5 w-full rounded-xl border border-brand-sand bg-white px-4 py-3.5 text-center text-3xl font-semibold text-brand-ink outline-none focus:border-brand-green focus:ring-1 focus:ring-brand-green"
+            />
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              {(Object.keys(DESTINO_LABELS) as Destino[]).map((d) => (
+                <button
+                  key={d}
+                  type="button"
+                  onClick={() => updateItem(index, { destino: d })}
+                  className={cn(
+                    "rounded-xl border px-3 py-3 text-sm font-medium transition-colors",
+                    item.destino === d
+                      ? "border-brand-green bg-brand-green text-brand-cream"
+                      : "border-brand-sand text-brand-ink/70 hover:border-brand-green/50",
+                  )}
+                >
+                  {DESTINO_LABELS[d]}
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
       </div>
 
-      <div>
-        <p className="text-sm font-medium text-brand-ink">Destino</p>
-        <input type="hidden" name="destino" value={destino} />
-        <div className="mt-1.5 grid grid-cols-2 gap-2">
-          {DESTINO_OPTIONS.map((opt) => (
-            <button
-              key={opt.value}
-              type="button"
-              onClick={() => setDestino(opt.value)}
-              className={cn(
-                "rounded-xl border px-3 py-3 text-sm font-medium transition-colors",
-                destino === opt.value
-                  ? "border-brand-green bg-brand-green text-brand-cream"
-                  : "border-brand-sand text-brand-ink/70 hover:border-brand-green/50",
-              )}
-            >
-              {opt.label}
-            </button>
-          ))}
-        </div>
-      </div>
+      <button
+        type="button"
+        onClick={addItem}
+        className="flex items-center gap-1.5 text-sm font-medium text-brand-green hover:underline"
+      >
+        <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+        Adicionar destino
+      </button>
 
       {state.error && (
         <p role="alert" className="text-sm text-red-600">

@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useMemo, useRef, useState, useTransition } from "react";
-import { ImageOff, Loader2, Pencil, Trash2 } from "lucide-react";
+import { ImageOff, Loader2, Pencil, Search, Trash2 } from "lucide-react";
 import type { Product, ProductType } from "@/lib/types/domain";
 import { Badge } from "@/components/ui/Badge";
 import { cn } from "@/lib/utils";
@@ -25,6 +25,7 @@ type TipoFilter = "todos" | ProductType;
 export function AdminProductTable({ products }: { products: Product[] }) {
   const [isPending, startTransition] = useTransition();
   const [tipoFilter, setTipoFilter] = useState<TipoFilter>("todos");
+  const [search, setSearch] = useState("");
 
   const counts = useMemo(
     () => ({
@@ -35,10 +36,16 @@ export function AdminProductTable({ products }: { products: Product[] }) {
     [products],
   );
 
-  const filtered = useMemo(
-    () => (tipoFilter === "todos" ? products : products.filter((p) => p.productType === tipoFilter)),
-    [products, tipoFilter],
-  );
+  const filtered = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    return products.filter((p) => {
+      if (tipoFilter !== "todos" && p.productType !== tipoFilter) return false;
+      if (!term) return true;
+      return (
+        p.name.toLowerCase().includes(term) || (p.categoryName ?? "").toLowerCase().includes(term)
+      );
+    });
+  }, [products, tipoFilter, search]);
 
   function handleToggleActive(id: string, next: boolean) {
     startTransition(() => toggleProductActive(id, next));
@@ -54,6 +61,22 @@ export function AdminProductTable({ products }: { products: Product[] }) {
     }
     startTransition(() => deleteProduct(id));
   }
+
+  const searchBox = (
+    <div className="relative mb-4 max-w-xs">
+      <Search
+        className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-brand-ink/40"
+        aria-hidden="true"
+      />
+      <input
+        type="search"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        placeholder="Buscar por raça ou categoria..."
+        className="w-full rounded-full border border-brand-sand bg-white py-2.5 pl-10 pr-4 text-sm text-brand-ink outline-none focus:border-brand-green focus:ring-1 focus:ring-brand-green"
+      />
+    </div>
+  );
 
   const filterTabs = (
     <div className="mb-4 flex flex-wrap gap-2">
@@ -91,11 +114,12 @@ export function AdminProductTable({ products }: { products: Product[] }) {
 
   return (
     <>
+      {searchBox}
       {filterTabs}
 
       {filtered.length === 0 ? (
         <p className="rounded-2xl border border-dashed border-brand-sand bg-white p-10 text-center text-sm text-brand-ink/60">
-          Nenhum item desse tipo cadastrado.
+          {search.trim() ? "Nenhum item encontrado pra essa busca." : "Nenhum item desse tipo cadastrado."}
         </p>
       ) : (
         <>
@@ -138,7 +162,11 @@ export function AdminProductTable({ products }: { products: Product[] }) {
                   <PriceCell productId={product.id} price={product.price} />
                 </td>
                 <td className="px-4 py-3">
-                  <StockCell productId={product.id} stock={product.stock} />
+                  <StockCell
+                    productId={product.id}
+                    stock={product.stock}
+                    productType={product.productType}
+                  />
                 </td>
                 <td className="px-4 py-3">
                   <button
@@ -230,7 +258,11 @@ export function AdminProductTable({ products }: { products: Product[] }) {
 
                 <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5">
                   <PriceCell productId={product.id} price={product.price} />
-                  <StockCell productId={product.id} stock={product.stock} />
+                  <StockCell
+                    productId={product.id}
+                    stock={product.stock}
+                    productType={product.productType}
+                  />
                 </div>
               </div>
             </div>
@@ -298,8 +330,33 @@ function PriceCell({ productId, price }: { productId: string; price: number | nu
   );
 }
 
-/** Estoque editável direto na linha: digita, ou usa os botões -/+, salva sozinho. */
-function StockCell({ productId, stock }: { productId: string; stock: number }) {
+/** Estoque editável direto na linha: digita, ou usa os botões -/+, salva sozinho.
+ * Pra raça "Ave", o estoque é calculado sozinho a partir do Plantel (ver
+ * 0008_postura_login_ave_stock.sql) — aqui só mostra o número, sem editar. */
+function StockCell({
+  productId,
+  stock,
+  productType,
+}: {
+  productId: string;
+  stock: number;
+  productType: Product["productType"];
+}) {
+  if (productType === "ave") {
+    return (
+      <span
+        title="Calculado automaticamente pelo Plantel"
+        className="inline-flex items-center gap-1 text-sm text-brand-ink/70"
+      >
+        {stock} <span className="text-xs text-brand-ink/40">(Plantel)</span>
+      </span>
+    );
+  }
+
+  return <StockCellEditable productId={productId} stock={stock} />;
+}
+
+function StockCellEditable({ productId, stock }: { productId: string; stock: number }) {
   const [value, setValue] = useState(stock);
   const [isPending, startTransition] = useTransition();
 

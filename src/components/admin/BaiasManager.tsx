@@ -1,8 +1,18 @@
 "use client";
 
 import Image from "next/image";
-import { useActionState, useEffect, useRef, useState, useTransition } from "react";
-import { ChevronDown, Egg, Loader2, MessageSquarePlus, Pencil, Plus, Trash2, Users } from "lucide-react";
+import { useActionState, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import {
+  ChevronDown,
+  Egg,
+  Loader2,
+  MessageSquarePlus,
+  Pencil,
+  Plus,
+  Search,
+  Trash2,
+  Users,
+} from "lucide-react";
 import { emojiForEspecie, type Baia } from "@/lib/types/domain";
 import { Badge, badgeToneClasses, type BadgeTone } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -56,7 +66,20 @@ export function BaiasManager({
   const [editing, setEditing] = useState<Baia | null>(null);
   const [posturaFor, setPosturaFor] = useState<Baia | null>(null);
   const [obsFor, setObsFor] = useState<Baia | null>(null);
+  const [search, setSearch] = useState("");
   const [isPending, startTransition] = useTransition();
+
+  const filteredBaias = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    if (!term) return baias;
+    return baias.filter(
+      (baia) =>
+        baia.nome.toLowerCase().includes(term) ||
+        baia.codigo.toLowerCase().includes(term) ||
+        baia.especie.toLowerCase().includes(term) ||
+        (baia.setor ?? "").toLowerCase().includes(term),
+    );
+  }, [baias, search]);
 
   function handleDelete(baia: Baia) {
     if (
@@ -71,7 +94,20 @@ export function BaiasManager({
 
   return (
     <div>
-      <div className="flex justify-end">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="relative flex-1 sm:max-w-xs">
+          <Search
+            className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-brand-ink/40"
+            aria-hidden="true"
+          />
+          <input
+            type="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Buscar por nome, código, espécie ou setor..."
+            className="w-full rounded-full border border-brand-sand bg-white py-2.5 pl-10 pr-4 text-sm text-brand-ink outline-none focus:border-brand-green focus:ring-1 focus:ring-brand-green"
+          />
+        </div>
         <Button onClick={() => setNovaOpen(true)}>
           <Plus className="h-4 w-4" aria-hidden="true" />
           Nova baia
@@ -82,9 +118,13 @@ export function BaiasManager({
         <p className="mt-6 rounded-2xl border border-dashed border-brand-sand bg-white p-10 text-center text-sm text-brand-ink/60">
           Nenhuma baia cadastrada ainda.
         </p>
+      ) : filteredBaias.length === 0 ? (
+        <p className="mt-6 rounded-2xl border border-dashed border-brand-sand bg-white p-10 text-center text-sm text-brand-ink/60">
+          Nenhuma baia encontrada pra essa busca.
+        </p>
       ) : (
         <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {baias.map((baia) => (
+          {filteredBaias.map((baia) => (
             <div key={baia.id} className="rounded-2xl border border-brand-sand/70 bg-white p-4">
               <div className="flex items-start justify-between gap-2">
                 <div className="flex min-w-0 items-center gap-2.5">
@@ -105,6 +145,7 @@ export function BaiasManager({
                   <BaiaQrCode
                     nome={baia.nome}
                     codigo={baia.codigo}
+                    especie={baia.especie}
                     dataUrl={qrDataUrls[baia.id]}
                     className="h-8 w-8 border-transparent shadow-none hover:border-brand-green"
                   />
@@ -401,13 +442,18 @@ function BaiaFormSheet({
   const [state, formAction, pending] = useActionState(action, initialState);
   const formRef = useRef<HTMLFormElement>(null);
   const closedByUs = useRef(false);
+  // Só fecha quando "pending" passa de true pra false (depois de uma
+  // submissão de verdade) — nunca no mount, onde "pending" já nasce false e
+  // bateria a mesma condição sem ninguém ter enviado o formulário.
+  const wasPending = useRef(false);
 
   useEffect(() => {
-    if (!pending && !state.error && closedByUs.current === false && formRef.current) {
+    if (wasPending.current && !pending && !state.error && closedByUs.current === false) {
       // Submissão concluída sem erro: fecha o painel.
       closedByUs.current = true;
       onClose();
     }
+    wasPending.current = pending;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pending]);
 
@@ -537,19 +583,60 @@ function BaiaFormSheet({
   );
 }
 
+const DESTINO_LABELS: Record<Baia["destinoPadrao"], string> = {
+  venda: "Venda (fica disponível)",
+  choc: "Chocadeira (incuba, 21 dias)",
+  reservado: "Reservado",
+  descarte: "Descarte",
+};
+
+interface PosturaItemDraft {
+  destino: Baia["destinoPadrao"];
+  quantidade: string;
+}
+
+/** Registro de postura: dá pra lançar quantidades diferentes pra destinos
+ * diferentes numa única coleta (ex: "10 pra chocadeira, 20 pra venda") — cada
+ * linha aqui vira o próprio lote independente no banco. Começa com uma linha
+ * só (o caso mais comum) e "+ Adicionar destino" abre mais quando precisar. */
 function PosturaFormSheet({ baia, onClose }: { baia: Baia; onClose: () => void }) {
   const [state, formAction, pending] = useActionState(createPostura, initialState);
   const closedByUs = useRef(false);
+  // Só fecha quando "pending" passa de true pra false (depois de uma
+  // submissão de verdade) — nunca no mount, onde "pending" já nasce false e
+  // bateria a mesma condição assim que o painel abre, sem ninguém ter
+  // clicado em "Registrar postura" (esse era o bug: o painel abria e
+  // fechava sozinho na mesma hora).
+  const wasPending = useRef(false);
+  const [itens, setItens] = useState<PosturaItemDraft[]>([
+    { destino: baia.destinoPadrao, quantidade: "" },
+  ]);
 
   useEffect(() => {
-    if (!pending && !state.error && closedByUs.current === false) {
+    if (wasPending.current && !pending && !state.error && closedByUs.current === false) {
       closedByUs.current = true;
       onClose();
     }
+    wasPending.current = pending;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pending]);
 
   const today = new Date().toISOString().split("T")[0];
+  const itensJson = JSON.stringify(
+    itens.map((item) => ({ destino: item.destino, quantidade: Number(item.quantidade) || 0 })),
+  );
+
+  function updateItem(index: number, patch: Partial<PosturaItemDraft>) {
+    setItens((prev) => prev.map((item, i) => (i === index ? { ...item, ...patch } : item)));
+  }
+
+  function addItem() {
+    setItens((prev) => [...prev, { destino: "venda", quantidade: "" }]);
+  }
+
+  function removeItem(index: number) {
+    setItens((prev) => prev.filter((_, i) => i !== index));
+  }
 
   return (
     <Sheet
@@ -560,21 +647,63 @@ function PosturaFormSheet({ baia, onClose }: { baia: Baia; onClose: () => void }
     >
       <form action={formAction} id="postura-form" className="space-y-4">
         <input type="hidden" name="baia_id" value={baia.id} />
+        <input type="hidden" name="itens" value={itensJson} />
 
-        <div>
-          <label htmlFor="quantidade" className="block text-sm font-medium text-brand-ink">
-            Quantidade de ovos
-          </label>
-          <input
-            id="quantidade"
-            name="quantidade"
-            type="number"
-            min={1}
-            required
-            autoFocus
-            className={inputClass}
-          />
+        <div className="space-y-3">
+          {itens.map((item, index) => (
+            <div key={index} className="rounded-xl border border-brand-sand p-3">
+              <div className="flex items-center justify-between gap-2">
+                <label
+                  htmlFor={`quantidade-${index}`}
+                  className="text-sm font-medium text-brand-ink"
+                >
+                  {itens.length > 1 ? `Quantidade #${index + 1}` : "Quantidade de ovos"}
+                </label>
+                {itens.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => removeItem(index)}
+                    aria-label="Remover este destino"
+                    className="text-xs font-medium text-red-600 hover:underline"
+                  >
+                    Remover
+                  </button>
+                )}
+              </div>
+              <input
+                id={`quantidade-${index}`}
+                type="number"
+                min={1}
+                required
+                autoFocus={index === 0}
+                value={item.quantidade}
+                onChange={(e) => updateItem(index, { quantidade: e.target.value })}
+                className={inputClass}
+              />
+              <select
+                value={item.destino}
+                onChange={(e) => updateItem(index, { destino: e.target.value as Baia["destinoPadrao"] })}
+                className={`${inputClass} mt-2`}
+                aria-label="Destino"
+              >
+                {(Object.keys(DESTINO_LABELS) as Baia["destinoPadrao"][]).map((d) => (
+                  <option key={d} value={d}>
+                    {DESTINO_LABELS[d]}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ))}
         </div>
+
+        <button
+          type="button"
+          onClick={addItem}
+          className="flex items-center gap-1.5 text-sm font-medium text-brand-green hover:underline"
+        >
+          <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+          Adicionar destino
+        </button>
 
         <div className="grid grid-cols-2 gap-3">
           <div>
@@ -602,18 +731,6 @@ function PosturaFormSheet({ baia, onClose }: { baia: Baia; onClose: () => void }
               className={inputClass}
             />
           </div>
-        </div>
-
-        <div>
-          <label htmlFor="destino" className="block text-sm font-medium text-brand-ink">
-            Destino
-          </label>
-          <select id="destino" name="destino" defaultValue={baia.destinoPadrao} className={inputClass}>
-            <option value="venda">Venda (fica disponível)</option>
-            <option value="choc">Chocadeira (incuba, 21 dias)</option>
-            <option value="reservado">Reservado</option>
-            <option value="descarte">Descarte</option>
-          </select>
         </div>
 
         {state.error && (

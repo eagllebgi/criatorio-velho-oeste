@@ -45,6 +45,8 @@ export function ProductForm({
     if (!product) return NOVA_RACA;
     return existingNames.includes(product.name) ? product.name : NOVA_RACA;
   });
+  const [productType, setProductType] = useState(product?.productType ?? "ovo");
+  const isAve = productType === "ave";
 
   return (
     <form action={formAction} className="max-w-3xl space-y-6">
@@ -56,7 +58,8 @@ export function ProductForm({
           <select
             id="product_type"
             name="product_type"
-            defaultValue={product?.productType ?? "ovo"}
+            value={productType}
+            onChange={(e) => setProductType(e.target.value as "ovo" | "ave")}
             className={inputClass}
           >
             <option value="ovo">Ovo fértil</option>
@@ -155,14 +158,40 @@ export function ProductForm({
           <label htmlFor="stock" className="block text-sm font-medium text-brand-ink">
             Quantidade disponível
           </label>
-          <input
-            id="stock"
-            name="stock"
-            type="number"
-            min={0}
-            defaultValue={product?.stock ?? 0}
-            className={inputClass}
-          />
+          {isAve ? (
+            <>
+              {/* Estoque de Ave não é digitado — é calculado sozinho contando
+                  quantas aves dessa raça estão "Disponível" no Plantel (ver
+                  0008_postura_login_ave_stock.sql). Cadastrar uma ave nova
+                  disponível pra venda no Plantel (com a anilha dela) já
+                  atualiza esse número automaticamente. */}
+              <input
+                id="stock"
+                type="number"
+                value={product?.stock ?? 0}
+                disabled
+                readOnly
+                className={`${inputClass} cursor-not-allowed bg-brand-cream-dark/40 text-brand-ink/50`}
+              />
+              <p className="mt-1.5 text-xs text-brand-ink/50">
+                Calculado automaticamente a partir das aves &quot;Disponível&quot; no Plantel — para
+                mudar, cadastre ou dê baixa em{" "}
+                <a href="/admin/aves" className="text-brand-green underline hover:no-underline">
+                  Plantel
+                </a>
+                .
+              </p>
+            </>
+          ) : (
+            <input
+              id="stock"
+              name="stock"
+              type="number"
+              min={0}
+              defaultValue={product?.stock ?? 0}
+              className={inputClass}
+            />
+          )}
         </div>
 
         <div>

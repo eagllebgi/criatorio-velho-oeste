@@ -9,8 +9,10 @@ import { cn } from "@/lib/utils";
 /**
  * QR Code de coleta de ovos, num cantinho do card da baia — clica e abre o
  * QR grande pra imprimir e colar na frente da baia. Escaneando ele, o
- * camponês cai direto na tela de coleta daquela baia (/coletar/<token>),
- * sem precisar de login (veja supabase/migrations/0007_qr_postura.sql).
+ * camponês cai direto na tela de coleta daquela baia (/coletar/<token>) —
+ * precisa logar com a mesma conta do painel na primeira vez (veja
+ * supabase/migrations/0008_postura_login_ave_stock.sql), depois disso o
+ * aparelho continua logado pros próximos QR Codes.
  *
  * O PNG (dataUrl) já vem pronto do servidor (gerado em page.tsx com a lib
  * "qrcode") — o componente só exibe, não gera nada no navegador.
@@ -18,11 +20,13 @@ import { cn } from "@/lib/utils";
 export function BaiaQrCode({
   nome,
   codigo,
+  especie,
   dataUrl,
   className,
 }: {
   nome: string;
   codigo: string;
+  especie: string;
   dataUrl: string;
   className?: string;
 }) {
@@ -44,10 +48,7 @@ export function BaiaQrCode({
 
       <Sheet open={open} onClose={() => setOpen(false)} title={`QR Code — ${nome}`}>
         <div className="flex flex-col items-center gap-4 text-center">
-          <p className="text-sm text-brand-ink/60">
-            Imprima e cole na frente da baia. Ao escanear, o camponês já cai direto na tela de
-            coleta de ovos dessa baia — sem precisar de login.
-          </p>
+          <p className="text-sm text-brand-ink/60">Imprima e Cole na Frente da Baia</p>
 
           <div className="rounded-2xl border border-brand-sand bg-white p-4">
             {/* Vem pronto do servidor como PNG (data URI) — <img> puro é o
@@ -57,9 +58,13 @@ export function BaiaQrCode({
             <img src={dataUrl} alt={`QR Code de coleta — ${nome}`} width={240} height={240} />
           </div>
 
+          {/* Nome por extenso bem visível embaixo do QR — ajuda a conferir
+              qual é qual na hora de colar cada um na baia certa. */}
           <div>
-            <p className="font-medium text-brand-ink">{nome}</p>
-            <p className="text-xs text-brand-ink/50">{codigo}</p>
+            <p className="text-lg font-semibold text-brand-ink">{nome}</p>
+            <p className="text-sm text-brand-ink/50">
+              {especie} · {codigo}
+            </p>
           </div>
 
           <div className="flex w-full gap-2">

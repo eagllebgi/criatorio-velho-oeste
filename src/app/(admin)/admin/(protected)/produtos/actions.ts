@@ -19,18 +19,26 @@ function parseProductForm(formData: FormData) {
   const shortDescription = String(formData.get("short_description") ?? "").trim() || null;
   const description = String(formData.get("description") ?? "").trim() || null;
   const priceRaw = String(formData.get("price") ?? "").trim();
-  const stockRaw = String(formData.get("stock") ?? "0").trim();
   const lowStockRaw = String(formData.get("low_stock_threshold") ?? "5").trim();
   const active = formData.get("active") === "on";
   const featured = formData.get("featured") === "on";
   const productType = String(formData.get("product_type") ?? "ovo") === "ave" ? "ave" : "ovo";
+
+  // Estoque de raça "Ave" não vem do formulário (o campo fica desabilitado e
+  // sem "name" no ProductForm quando product_type é "ave") — é calculado
+  // sozinho por gatilho no banco a partir do Plantel (ver
+  // 0008_postura_login_ave_stock.sql). Só raça "Ovo" manda estoque digitado
+  // à mão; pra "Ave" nem incluímos a coluna no insert/update, pra nunca
+  // sobrescrever o valor calculado com um "0" de campo ausente.
+  const stockRaw = String(formData.get("stock") ?? "").trim();
+  const stock = productType === "ave" ? undefined : Number(stockRaw) || 0;
 
   return {
     name,
     short_description: shortDescription,
     description,
     price: priceRaw ? Number(priceRaw.replace(",", ".")) : null,
-    stock: Number(stockRaw) || 0,
+    stock,
     low_stock_threshold: Number(lowStockRaw) || 0,
     active,
     featured,

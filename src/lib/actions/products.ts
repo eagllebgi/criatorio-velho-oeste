@@ -41,6 +41,20 @@ export async function updateProductStockQuick(
   const authError = await requireAdmin(supabase);
   if (authError) return { error: authError };
 
+  // Estoque de raça "Ave" é calculado sozinho a partir do Plantel (ver
+  // 0008_postura_login_ave_stock.sql) — não dá pra editar direto. A UI já
+  // deixa o campo desabilitado/somente-leitura pra esse tipo (ProductForm,
+  // StockCell); essa checagem aqui é só a segunda camada de segurança,
+  // igual ao padrão do requireAdmin acima.
+  const { data: product } = await supabase
+    .from("products")
+    .select("product_type")
+    .eq("id", productId)
+    .maybeSingle();
+  if (product?.product_type === "ave") {
+    return { error: "Estoque de Ave é calculado automaticamente pelo Plantel." };
+  }
+
   const { error } = await supabase
     .from("products")
     .update({ stock: Math.max(0, stock) })

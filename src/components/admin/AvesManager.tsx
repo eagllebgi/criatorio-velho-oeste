@@ -397,12 +397,17 @@ function AveFormSheet({
   const [state, formAction, pending] = useActionState(action, initialState);
   const formRef = useRef<HTMLFormElement>(null);
   const closedByUs = useRef(false);
+  // Só fecha quando "pending" passa de true pra false (ou seja, depois de uma
+  // submissão de verdade) — nunca no próprio mount, onde "pending" já nasce
+  // false e bateria a mesma condição sem ninguém ter clicado em nada.
+  const wasPending = useRef(false);
 
   useEffect(() => {
-    if (!pending && !state.error && closedByUs.current === false && formRef.current) {
+    if (wasPending.current && !pending && !state.error && closedByUs.current === false) {
       closedByUs.current = true;
       onClose();
     }
+    wasPending.current = pending;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pending]);
 

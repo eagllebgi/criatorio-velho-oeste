@@ -18,6 +18,12 @@ function revalidateGestaoPaths() {
   revalidatePath("/admin/aves");
   revalidatePath("/admin/postura");
   revalidatePath("/admin");
+  // Registrar postura com destino "Venda" já atualiza sozinho o estoque da
+  // raça de Ovo correspondente (gatilho no banco, ver 0008_postura_login_ave_stock.sql)
+  // — precisa revalidar Produtos e o catálogo público pra essa mudança aparecer.
+  revalidatePath("/admin/produtos");
+  revalidatePath("/ovos");
+  revalidatePath("/ovos/[slug]", "page");
 }
 
 // ── Baias ─────────────────────────────────────────────────────────────────
@@ -146,22 +152,42 @@ export async function createObservacao(baiaId: string, texto: string): Promise<F
 
 // ── Postura (novo lote de ovos) ──────────────────────────────────────────
 
+interface PosturaItem {
+  destino: "venda" | "choc" | "reservado" | "descarte";
+  quantidade: number;
+}
+
+/** Um único lançamento de postura pode ter quantidades diferentes indo pra
+ * destinos diferentes de uma vez (ex: "10 pra chocadeira, 20 pra venda") —
+ * o formulário monta essa lista e manda como JSON no campo "itens" em vez de
+ * um destino/quantidade só. Cada item vira seu próprio lote (com código
+ * sequencial próprio), exatamente como se tivesse sido lançado um de cada
+ * vez. Destino "Venda" já atualiza sozinho o estoque da raça de Ovo
+ * correspondente (gatilho no banco — ver 0008_postura_login_ave_stock.sql). */
 export async function createPostura(
   _prevState: FormState,
   formData: FormData,
 ): Promise<FormState> {
   const baiaId = String(formData.get("baia_id") ?? "");
-  const quantidade = parseInt(String(formData.get("quantidade") ?? ""), 10);
-  const destino = String(formData.get("destino") ?? "venda") as
-    | "venda"
-    | "choc"
-    | "reservado"
-    | "descarte";
   const dataPostura = String(formData.get("data_postura") ?? "").trim() || undefined;
   const precoInput = parsePriceInput(String(formData.get("preco_unit") ?? ""));
 
+  let itens: PosturaItem[];
+  try {
+    itens = JSON.parse(String(formData.get("itens") ?? "[]"));
+  } catch {
+    return { error: "Não foi possível ler as quantidades informadas." };
+  }
+
   if (!baiaId) return { error: "Baia inválida." };
-  if (!quantidade || quantidade <= 0) return { error: "Informe a quantidade de ovos." };
+  if (!Array.isArray(itens) || itens.length === 0) {
+    return { error: "Informe a quantidade de ovos." };
+  }
+  for (const item of itens) {
+    if (!item.quantidade || item.quantidade <= 0) {
+      return { error: "Informe a quantidade de ovos em cada destino." };
+    }
+  }
 
   const supabase = await createClient();
 
@@ -173,38 +199,42 @@ export async function createPostura(
 
   const precoUnit = precoInput ?? baia?.preco_ovo ?? null;
 
-  // Mesma lógica do protótipo: o destino escolhido já define o status e,
-  // quando vai direto pra chocadeira, calcula a previsão de eclosão (21 dias
-  // é o padrão da maioria das aves domésticas).
-  let status: "Disponível" | "Incubando" | "Reservado" | "Descartado" = "Disponível";
-  let eclosaoPrevista: string | null = null;
+  // Mesma lógica do protótipo pra cada item: o destino escolhido já define o
+  // status e, quando vai direto pra chocadeira, calcula a previsão de
+  // eclosão (21 dias é o padrão da maioria das aves domésticas).
   const baseDate = dataPostura ? new Date(`${dataPostura}T00:00:00`) : new Date();
 
-  if (destino === "choc") {
-    status = "Incubando";
-    const eclosao = new Date(baseDate);
-    eclosao.setDate(eclosao.getDate() + 21);
-    eclosaoPrevista = eclosao.toISOString().split("T")[0];
-  } else if (destino === "reservado") {
-    status = "Reservado";
-  } else if (destino === "descarte") {
-    status = "Descartado";
+  for (const item of itens) {
+    let status: "Disponível" | "Incubando" | "Reservado" | "Descartado" = "Disponível";
+    let eclosaoPrevista: string | null = null;
+
+    if (item.destino === "choc") {
+      status = "Incubando";
+      const eclosao = new Date(baseDate);
+      eclosao.setDate(eclosao.getDate() + 21);
+      eclosaoPrevista = eclosao.toISOString().split("T")[0];
+    } else if (item.destino === "reservado") {
+      status = "Reservado";
+    } else if (item.destino === "descarte") {
+      status = "Descartado";
+    }
+
+    const codigo = await nextCodigo(supabase, "lotes_postura", "L", 4);
+
+    const { error } = await supabase.from("lotes_postura").insert({
+      codigo,
+      baia_id: baiaId,
+      quantidade: item.quantidade,
+      preco_unit: precoUnit,
+      destino: item.destino,
+      status,
+      eclosao_prevista: eclosaoPrevista,
+      ...(dataPostura ? { data_postura: dataPostura } : {}),
+    });
+
+    if (error) return { error: error.message };
   }
 
-  const codigo = await nextCodigo(supabase, "lotes_postura", "L", 4);
-
-  const { error } = await supabase.from("lotes_postura").insert({
-    codigo,
-    baia_id: baiaId,
-    quantidade,
-    preco_unit: precoUnit,
-    destino,
-    status,
-    eclosao_prevista: eclosaoPrevista,
-    ...(dataPostura ? { data_postura: dataPostura } : {}),
-  });
-
-  if (error) return { error: error.message };
   revalidateGestaoPaths();
   return { error: null };
 }

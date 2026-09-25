@@ -5,7 +5,6 @@ import { ChevronRight } from "lucide-react";
 import { getProductBySlug } from "@/lib/data/products";
 import { formatBRL } from "@/lib/utils";
 import { StockBadge } from "@/components/catalog/StockBadge";
-import { AdminStockControl } from "@/components/catalog/AdminStockControl";
 import { AdminPriceControl } from "@/components/catalog/AdminPriceControl";
 import { ProductDetailPurchase } from "@/components/catalog/ProductDetailPurchase";
 import { ProductGallery } from "@/components/catalog/ProductGallery";
@@ -109,7 +108,14 @@ export default async function AvePage(props: PageProps<"/aves/[slug]">) {
           </div>
 
           {isAdmin && <AdminPriceControl productId={product.id} price={product.price} />}
-          {isAdmin && <AdminStockControl productId={product.id} stock={product.stock} />}
+          {isAdmin && (
+            // Estoque de Ave não é editável aqui — é calculado sozinho pelo
+            // Plantel (contagem de aves "Disponível" dessa raça). Pra mudar,
+            // cadastra ou dá baixa direto no Plantel.
+            <p className="text-xs text-brand-ink/45">
+              Estoque calculado automaticamente pelo Plantel.
+            </p>
+          )}
 
           {(product.description || product.shortDescription) && (
             <p className="text-sm leading-relaxed text-brand-ink/70 sm:text-base">

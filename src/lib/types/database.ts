@@ -300,8 +300,9 @@ export interface Database {
     };
     Views: Record<string, never>;
     Functions: {
-      // Funções públicas (SECURITY DEFINER) usadas pela tela de coleta por QR
-      // Code (/coletar/[token]) — veja 0007_qr_postura.sql.
+      // Funções (SECURITY DEFINER, só "authenticated") usadas pela tela de
+      // coleta por QR Code (/coletar/[token]) — veja 0007_qr_postura.sql e
+      // 0008_postura_login_ave_stock.sql.
       coletar_baia_info: {
         Args: { p_qr_token: string };
         Returns: {
@@ -314,10 +315,11 @@ export interface Database {
       coletar_registrar_postura: {
         Args: {
           p_qr_token: string;
-          p_quantidade: number;
-          p_destino: "venda" | "choc" | "reservado" | "descarte";
+          // Lista de { destino, quantidade } — mesmo formato usado pelo
+          // painel em createPostura (baias/actions.ts).
+          p_itens: Json;
         };
-        Returns: { codigo: string; baia_nome: string }[];
+        Returns: { baia_nome: string; codigos: string[] }[];
       };
     };
     Enums: Record<string, never>;

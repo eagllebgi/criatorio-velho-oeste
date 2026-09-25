@@ -35,7 +35,7 @@ export default async function BaiasQrCodesPage() {
           </h1>
           <p className="mt-1 text-sm text-brand-ink/60">
             Imprima e recorte um pra cada baia — cole na frente dela. Escaneando, o camponês cai
-            direto na tela de coleta de ovos daquela baia, sem precisar de login.
+            direto na tela de coleta de ovos daquela baia (login só na primeira vez).
           </p>
         </div>
         <PrintButton />
@@ -54,10 +54,12 @@ export default async function BaiasQrCodesPage() {
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={qr.dataUrl} alt={`QR Code — ${qr.nome}`} width={180} height={180} />
+              {/* Nome por extenso em destaque — facilita conferir qual QR é
+                  de qual baia na hora de recortar e colar cada um. */}
               <div>
-                <p className="text-sm font-medium text-brand-ink">{qr.nome}</p>
-                <p className="text-xs text-brand-ink/50">
-                  {qr.codigo} · {qr.especie}
+                <p className="text-base font-semibold text-brand-ink">{qr.nome}</p>
+                <p className="text-sm text-brand-ink/50">
+                  {qr.especie} · {qr.codigo}
                 </p>
               </div>
             </div>

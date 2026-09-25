@@ -26,7 +26,11 @@ export async function signIn(
     return { error: "E-mail ou senha inválidos." };
   }
 
-  redirect(redirectTo.startsWith("/admin") ? redirectTo : "/admin");
+  // "/coletar" também é um destino válido: é pra onde o LoginForm manda
+  // depois de logar direto na tela de coleta por QR Code (ver
+  // /coletar/[token]/page.tsx) — mesma conta do painel, tela diferente.
+  const isAllowed = redirectTo.startsWith("/admin") || redirectTo.startsWith("/coletar");
+  redirect(isAllowed ? redirectTo : "/admin");
 }
 
 export async function signOut(): Promise<void> {
