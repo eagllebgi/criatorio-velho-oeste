@@ -217,3 +217,114 @@ export async function getAllLotesPosturaAdmin(): Promise<LotePostura[]> {
 
   return (data ?? []).map(mapLotePostura);
 }
+
+// ── Gestão interna: frescor de ovos (envio) ──────────────────────────────
+// Regra combinada com o Gabriel (ver 0009_frescor_ovos_perfil.sql):
+//   - coletado há até 5 dias -> pode enviar pra qualquer estado do Brasil
+//   - coletado há 6 ou 7 dias -> só dá pra garantir envio dentro de SP
+//   - depois de 7 dias, o lote sai dessa conta (não conta mais como
+//     "fresco o bastante" pra envio, mesmo continuando "Disponível")
+// Calculado sempre na hora (sem tarefa agendada) a partir da data de hoje.
+
+export interface OvoFreshnessBuckets {
+  qtdAte5: number;
+  qtdAte7: number;
+}
+
+function diasDesdeColeta(dataPostura: string, hoje: Date): number {
+  const data = new Date(`${dataPostura}T00:00:00`);
+  return Math.floor((hoje.getTime() - data.getTime()) / 86_400_000);
+}
+
+/** Estoque de ovo disponível pra venda, por raça, separado em duas janelas
+ * de frescor. Chave do retorno: nome da espécie (lower + trim), pra casar
+ * com `products.name` do mesmo jeito que 0006 (fotos) e 0008 (estoque de
+ * ave) já fazem. Usada em Produtos/Ovos como coluna informativa — não muda
+ * o campo de estoque editável, que continua funcionando como sempre. */
+export async function getOvoFreshnessBuckets(): Promise<Record<string, OvoFreshnessBuckets>> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("lotes_postura")
+    .select("quantidade, data_postura, baias ( especie )")
+    .eq("destino", "venda")
+    .eq("status", "Disponível");
+
+  if (error) {
+    console.error("getOvoFreshnessBuckets error:", error.message);
+    return {};
+  }
+
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
+
+  const buckets: Record<string, OvoFreshnessBuckets> = {};
+
+  for (const row of (data ?? []) as {
+    quantidade: number;
+    data_postura: string;
+    baias: { especie: string } | null;
+  }[]) {
+    const especie = row.baias?.especie;
+    if (!especie) continue;
+
+    const key = especie.trim().toLowerCase();
+    const dias = diasDesdeColeta(row.data_postura, hoje);
+    if (!buckets[key]) buckets[key] = { qtdAte5: 0, qtdAte7: 0 };
+
+    if (dias <= 5) buckets[key].qtdAte5 += row.quantidade;
+    else if (dias <= 7) buckets[key].qtdAte7 += row.quantidade;
+  }
+
+  return buckets;
+}
+
+export interface LoteProximoPrazo {
+  id: string;
+  baiaNome: string | null;
+  especie: string;
+  quantidade: number;
+  diasColeta: number;
+}
+
+/** Lotes de ovos destinados à venda que estão a 6 ou 7 dias da coleta — o
+ * prazo de envio garantido (7 dias) está terminando. Usada no aviso dentro
+ * do Dashboard (calculado toda vez que a página carrega, sem precisar de
+ * nenhuma tarefa agendada nem número de WhatsApp cadastrado). */
+export async function getLotesProximoPrazoAdmin(): Promise<LoteProximoPrazo[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("lotes_postura")
+    .select("id, quantidade, data_postura, baias ( nome, especie )")
+    .eq("destino", "venda")
+    .eq("status", "Disponível");
+
+  if (error) {
+    console.error("getLotesProximoPrazoAdmin error:", error.message);
+    return [];
+  }
+
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
+
+  const result: LoteProximoPrazo[] = [];
+
+  for (const row of (data ?? []) as {
+    id: string;
+    quantidade: number;
+    data_postura: string;
+    baias: { nome: string; especie: string } | null;
+  }[]) {
+    const dias = diasDesdeColeta(row.data_postura, hoje);
+    if (dias !== 6 && dias !== 7) continue;
+
+    result.push({
+      id: row.id,
+      baiaNome: row.baias?.nome ?? null,
+      especie: row.baias?.especie ?? "",
+      quantidade: row.quantidade,
+      diasColeta: dias,
+    });
+  }
+
+  return result.sort((a, b) => b.diasColeta - a.diasColeta);
+}

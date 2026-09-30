@@ -11,6 +11,7 @@ import { createClient } from "@/lib/supabase/client";
 import { buildProductImagePath } from "@/lib/storage";
 import { ImageCropModal } from "@/components/admin/ImageCropModal";
 import { parsePriceInput, toPriceInputValue } from "@/lib/utils";
+import type { OvoFreshnessBuckets } from "@/lib/data/admin";
 import {
   deleteProduct,
   toggleProductActive,
@@ -22,7 +23,13 @@ const BUCKET = "product-images";
 
 type TipoFilter = "todos" | ProductType;
 
-export function AdminProductTable({ products }: { products: Product[] }) {
+export function AdminProductTable({
+  products,
+  freshness,
+}: {
+  products: Product[];
+  freshness: Record<string, OvoFreshnessBuckets>;
+}) {
   const [isPending, startTransition] = useTransition();
   const [tipoFilter, setTipoFilter] = useState<TipoFilter>("todos");
   const [search, setSearch] = useState("");
@@ -136,6 +143,16 @@ export function AdminProductTable({ products }: { products: Product[] }) {
               <th className="px-4 py-3 font-medium">Categoria</th>
               <th className="px-4 py-3 font-medium">Preço</th>
               <th className="px-4 py-3 font-medium">Estoque</th>
+              <th className="px-4 py-3 font-medium">
+                Coletado
+                <br />
+                até 5 dias
+              </th>
+              <th className="px-4 py-3 font-medium">
+                Coletado
+                <br />
+                até 7 dias
+              </th>
               <th className="px-4 py-3 font-medium">Status</th>
               <th className="px-4 py-3 font-medium">Destaque</th>
               <th className="px-4 py-3 font-medium text-right">Ações</th>
@@ -167,6 +184,12 @@ export function AdminProductTable({ products }: { products: Product[] }) {
                     stock={product.stock}
                     productType={product.productType}
                   />
+                </td>
+                <td className="px-4 py-3">
+                  <FreshnessCell product={product} freshness={freshness} bucket="ate5" />
+                </td>
+                <td className="px-4 py-3">
+                  <FreshnessCell product={product} freshness={freshness} bucket="ate7" />
                 </td>
                 <td className="px-4 py-3">
                   <button
@@ -264,6 +287,17 @@ export function AdminProductTable({ products }: { products: Product[] }) {
                     productType={product.productType}
                   />
                 </div>
+
+                {product.productType === "ovo" && (
+                  <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-brand-ink/60">
+                    <span>
+                      Até 5 dias: <FreshnessCell product={product} freshness={freshness} bucket="ate5" />
+                    </span>
+                    <span>
+                      Até 7 dias: <FreshnessCell product={product} freshness={freshness} bucket="ate7" />
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -354,6 +388,47 @@ function StockCell({
   }
 
   return <StockCellEditable productId={productId} stock={stock} />;
+}
+
+/** Coluna informativa (não editável) mostrando quanto tem disponível pra
+ * venda em cada janela de frescor — ver getOvoFreshnessBuckets em
+ * lib/data/admin.ts e a regra em 0009_frescor_ovos_perfil.sql. Só faz
+ * sentido pra Ovo (Ave não tem "coleta"); pra Ave mostra "—". */
+function FreshnessCell({
+  product,
+  freshness,
+  bucket,
+}: {
+  product: Product;
+  freshness: Record<string, OvoFreshnessBuckets>;
+  bucket: "ate5" | "ate7";
+}) {
+  if (product.productType !== "ovo") {
+    return <span className="text-sm text-brand-ink/30">—</span>;
+  }
+
+  const entry = freshness[product.name.trim().toLowerCase()];
+  const qtd = bucket === "ate5" ? (entry?.qtdAte5 ?? 0) : (entry?.qtdAte7 ?? 0);
+
+  if (qtd <= 0) {
+    return <span className="text-sm text-brand-ink/30">0</span>;
+  }
+
+  return (
+    <span
+      title={
+        bucket === "ate5"
+          ? "Pode ser enviado pra todo o Brasil"
+          : "Só dá pra garantir envio dentro de São Paulo"
+      }
+      className={cn(
+        "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium",
+        bucket === "ate5" ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700",
+      )}
+    >
+      {qtd}
+    </span>
+  );
 }
 
 function StockCellEditable({ productId, stock }: { productId: string; stock: number }) {

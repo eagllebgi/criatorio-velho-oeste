@@ -321,6 +321,13 @@ export interface Database {
         };
         Returns: { baia_nome: string; codigos: string[] }[];
       };
+      // SECURITY DEFINER, liberada pra "anon" — usada pelo carrinho do site
+      // público (sem login) pra checar frescor de ovos por CEP. Veja
+      // 0009_frescor_ovos_perfil.sql.
+      ovo_freshness_buckets: {
+        Args: { p_especie: string };
+        Returns: { qtd_ate_5: number; qtd_ate_7: number }[];
+      };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;

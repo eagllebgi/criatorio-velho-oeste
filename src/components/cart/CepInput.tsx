@@ -6,9 +6,15 @@ import { formatCep, isValidCepFormat, lookupCep, type CepAddress } from "@/lib/c
 interface CepInputProps {
   value: string;
   onChange: (value: string) => void;
+  /** Chamado toda vez que um CEP válido termina de ser consultado — com o
+   * endereço encontrado, ou null se não deu pra confirmar. Usado pelo
+   * carrinho pra saber o estado (UF) do cliente e checar frescor de ovos
+   * (ver CartDrawer / checkFreshnessForCep). Nunca bloqueia nada por conta
+   * própria: é só um aviso adicional que aproveita a mesma consulta. */
+  onResolved?: (address: CepAddress | null) => void;
 }
 
-export function CepInput({ value, onChange }: CepInputProps) {
+export function CepInput({ value, onChange, onResolved }: CepInputProps) {
   const [lookup, setLookup] = useState<{ cep: string; result: CepAddress | null } | null>(
     null,
   );
@@ -20,11 +26,13 @@ export function CepInput({ value, onChange }: CepInputProps) {
     lookupCep(value).then((result) => {
       if (cancelled) return;
       setLookup({ cep: value, result });
+      onResolved?.(result);
     });
 
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value]);
 
   const touched = value.length > 0;

@@ -8,13 +8,15 @@ import { CepInput } from "@/components/cart/CepInput";
 import { Button } from "@/components/ui/Button";
 import { formatBRL } from "@/lib/utils";
 import { buildOrderMessage, buildWhatsAppUrl, getCartSubtotal } from "@/lib/whatsapp";
-import { isValidCepFormat } from "@/lib/cep";
+import { isValidCepFormat, type CepAddress } from "@/lib/cep";
 import { trackEvent } from "@/lib/analytics/events";
+import { checkFreshnessForCep, type FreshnessWarning } from "@/lib/actions/freshness";
 
 export function CartDrawer() {
   const { items, isDrawerOpen, closeDrawer, clear } = useCart();
   const [cep, setCep] = useState("");
   const [showCepError, setShowCepError] = useState(false);
+  const [freshnessWarnings, setFreshnessWarnings] = useState<FreshnessWarning[]>([]);
 
   if (!isDrawerOpen) return null;
 
@@ -32,6 +34,15 @@ export function CartDrawer() {
     const url = buildWhatsAppUrl(message);
     trackEvent("whatsapp_click", { item_count: items.length, subtotal });
     window.open(url, "_blank", "noopener,noreferrer");
+  }
+
+  // Checagem de frescor (ver 0009_frescor_ovos_perfil.sql): aproveita a
+  // mesma consulta de CEP que já existia, só pra saber o estado (UF) do
+  // cliente. É só um aviso complementar — nunca impede de continuar pelo
+  // WhatsApp, mesmo se aparecer.
+  async function handleCepResolved(address: CepAddress | null) {
+    const warnings = await checkFreshnessForCep(items, address?.state ?? null);
+    setFreshnessWarnings(warnings);
   }
 
   return (
@@ -96,12 +107,23 @@ export function CartDrawer() {
                 onChange={(v) => {
                   setCep(v);
                   setShowCepError(false);
+                  setFreshnessWarnings([]);
                 }}
+                onResolved={handleCepResolved}
               />
               {showCepError && (
                 <p className="text-xs text-red-600">
                   Informe o CEP de entrega para continuar.
                 </p>
+              )}
+              {freshnessWarnings.length > 0 && (
+                <div className="space-y-1.5 rounded-lg border border-amber-200 bg-amber-50 p-3">
+                  {freshnessWarnings.map((warning) => (
+                    <p key={warning.productId} className="text-xs text-amber-800">
+                      {warning.message}
+                    </p>
+                  ))}
+                </div>
               )}
 
               <Button size="lg" className="w-full" onClick={handleContinue}>

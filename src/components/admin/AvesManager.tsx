@@ -60,6 +60,18 @@ export function AvesManager({ aves, baias }: { aves: Ave[]; baias: Baia[] }) {
   const [baixaOpen, setBaixaOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
 
+  // Sugestões pro campo "Nome / identificação" do formulário de ave — nomes
+  // já usados no plantel + as espécies já cadastradas nas baias (é comum o
+  // nome da ave ser igual ou parecido com a espécie, ex: "Angola Lavanda").
+  // Continua sendo um campo de texto livre (datalist só sugere, não trava),
+  // então também aceita algo mais específico tipo "Angola macho grande".
+  const nomeSuggestions = useMemo(() => {
+    const set = new Set<string>();
+    aves.forEach((a) => a.nome && set.add(a.nome));
+    baias.forEach((b) => b.especie && set.add(b.especie));
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "pt-BR"));
+  }, [aves, baias]);
+
   const filtered = useMemo(() => {
     const activeFilter = FILTERS.find((f) => f.key === filter)!;
     const term = search.trim().toLowerCase();
@@ -175,7 +187,14 @@ export function AvesManager({ aves, baias }: { aves: Ave[]; baias: Baia[] }) {
         </div>
       )}
 
-      <AveFormSheet open={novaOpen} onClose={() => setNovaOpen(false)} title="Nova ave" baias={baias} action={createAve} />
+      <AveFormSheet
+        open={novaOpen}
+        onClose={() => setNovaOpen(false)}
+        title="Nova ave"
+        baias={baias}
+        nomeSuggestions={nomeSuggestions}
+        action={createAve}
+      />
 
       {editing && (
         <AveFormSheet
@@ -183,6 +202,7 @@ export function AvesManager({ aves, baias }: { aves: Ave[]; baias: Baia[] }) {
           onClose={() => setEditing(null)}
           title={`Editar ${editing.nome}`}
           baias={baias}
+          nomeSuggestions={nomeSuggestions}
           ave={editing}
           action={updateAve.bind(null, editing.id)}
         />
@@ -384,6 +404,7 @@ function AveFormSheet({
   onClose,
   title,
   baias,
+  nomeSuggestions,
   ave,
   action,
 }: {
@@ -391,6 +412,7 @@ function AveFormSheet({
   onClose: () => void;
   title: string;
   baias: Baia[];
+  nomeSuggestions: string[];
   ave?: Ave;
   action: (state: FormState, formData: FormData) => Promise<FormState>;
 }) {
@@ -440,8 +462,17 @@ function AveFormSheet({
             autoFocus
             placeholder="Ex: Angola macho grande"
             defaultValue={ave?.nome}
+            list="ave-nome-sugestoes"
+            autoComplete="off"
             className={inputClass}
           />
+          {/* Sugestões (nomes já usados + espécies das baias) — o campo
+              continua livre, isso só ajuda a não digitar tudo de novo. */}
+          <datalist id="ave-nome-sugestoes">
+            {nomeSuggestions.map((n) => (
+              <option key={n} value={n} />
+            ))}
+          </datalist>
         </div>
 
         <div>

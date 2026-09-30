@@ -7,9 +7,10 @@ import {
   Wallet,
   TrendingUp,
   Bird,
+  Clock,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { getFinanceiroMesAdmin } from "@/lib/data/admin";
+import { getFinanceiroMesAdmin, getLotesProximoPrazoAdmin } from "@/lib/data/admin";
 import { formatBRL } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -38,7 +39,11 @@ async function getDashboardStats() {
 }
 
 export default async function AdminDashboardPage() {
-  const [stats, financeiroMes] = await Promise.all([getDashboardStats(), getFinanceiroMesAdmin()]);
+  const [stats, financeiroMes, lotesProximoPrazo] = await Promise.all([
+    getDashboardStats(),
+    getFinanceiroMesAdmin(),
+    getLotesProximoPrazoAdmin(),
+  ]);
 
   const vendasDoMes = financeiroMes
     .filter((f) => f.tipo === "entrada")
@@ -81,6 +86,37 @@ export default async function AdminDashboardPage() {
       <p className="mt-1 text-sm text-brand-ink/60">
         Visão geral do catálogo e da produção do Criatório Velho Oeste.
       </p>
+
+      {lotesProximoPrazo.length > 0 && (
+        <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-5">
+          <div className="flex items-center gap-2 text-amber-800">
+            <Clock className="h-5 w-5 shrink-0" aria-hidden="true" />
+            <h2 className="font-serif text-base font-semibold">Prazo de envio terminando</h2>
+          </div>
+          <p className="mt-1.5 text-sm text-amber-800/80">
+            Esses lotes de ovos destinados à venda estão perto de sair da
+            janela de frescor (o envio só é garantido até 7 dias da coleta).
+          </p>
+          <ul className="mt-3 space-y-1.5 text-sm text-amber-900">
+            {lotesProximoPrazo.map((lote) => (
+              <li key={lote.id} className="flex items-center justify-between gap-3">
+                <span>
+                  {lote.baiaNome ?? lote.especie} — {lote.especie}
+                </span>
+                <span className="shrink-0 font-medium">
+                  {lote.quantidade} ovos · {lote.diasColeta} dias
+                </span>
+              </li>
+            ))}
+          </ul>
+          <Link
+            href="/admin/postura"
+            className="mt-3 inline-block text-sm font-medium text-amber-800 underline underline-offset-2"
+          >
+            Ver postura
+          </Link>
+        </div>
+      )}
 
       <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <Link
