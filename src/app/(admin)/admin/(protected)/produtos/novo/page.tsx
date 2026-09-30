@@ -18,6 +18,16 @@ export default async function NovoProdutoPage() {
     a.localeCompare(b, "pt-BR"),
   );
 
+  // Categoria e preço já usados por cada raça (a última vez que apareceu no
+  // catálogo) — o ProductForm usa isso pra preencher sozinho esses dois
+  // campos assim que uma raça já cadastrada é escolhida acima.
+  const racaDefaults: Record<string, { categoryId: string | null; price: number | null }> = {};
+  for (const p of products) {
+    if (!(p.name in racaDefaults)) {
+      racaDefaults[p.name] = { categoryId: p.categoryId, price: p.price };
+    }
+  }
+
   return (
     <div>
       <h1 className="font-serif text-2xl font-semibold text-brand-ink">Adicionar Novo Item</h1>
@@ -29,6 +39,7 @@ export default async function NovoProdutoPage() {
         <ProductForm
           categories={categories}
           existingNames={existingNames}
+          racaDefaults={racaDefaults}
           action={createProduct}
           submitLabel="Cadastrar raça"
         />

@@ -3,6 +3,7 @@
 import { useActionState, useState } from "react";
 import type { Category, Product } from "@/lib/types/domain";
 import type { ProductFormState } from "@/app/(admin)/admin/(protected)/produtos/actions";
+import { toPriceInputValue } from "@/lib/utils";
 
 const initialState: ProductFormState = { error: null };
 
@@ -25,6 +26,12 @@ interface ProductFormProps {
    * em vez de digitar tudo de novo — útil principalmente quando a mesma raça
    * vai virar tanto um anúncio de Ovo quanto de Ave. */
   existingNames: string[];
+  /** Categoria e preço já usados por cada raça já cadastrada (a última vez
+   * que essa raça apareceu no catálogo, Ovo ou Ave) — usado só na hora de
+   * CADASTRAR um item novo (nunca durante edição de um já existente): ao
+   * escolher uma raça já conhecida, Categoria e Preço são preenchidos
+   * sozinhos com esses valores, mas continuam 100% editáveis. */
+  racaDefaults: Record<string, { categoryId: string | null; price: number | null }>;
   action: (state: ProductFormState, formData: FormData) => Promise<ProductFormState>;
   submitLabel: string;
 }
@@ -36,17 +43,35 @@ export function ProductForm({
   product,
   categories,
   existingNames,
+  racaDefaults,
   action,
   submitLabel,
 }: ProductFormProps) {
   const [state, formAction, pending] = useActionState(action, initialState);
   const [categoryValue, setCategoryValue] = useState(product?.categoryId ?? "");
+  const [priceValue, setPriceValue] = useState(() => toPriceInputValue(product?.price ?? null));
   const [racaValue, setRacaValue] = useState(() => {
     if (!product) return NOVA_RACA;
     return existingNames.includes(product.name) ? product.name : NOVA_RACA;
   });
   const [productType, setProductType] = useState(product?.productType ?? "ovo");
   const isAve = productType === "ave";
+
+  /** Ao escolher uma raça já cadastrada (só no CADASTRO de item novo — em
+   * edição, `product` já existe e isso fica desligado pra não sobrescrever
+   * os dados do item que está sendo editado), puxa Categoria e Preço da
+   * última vez que essa raça apareceu no catálogo. Continua 100% editável
+   * depois — é só um ponto de partida, pra não ter que digitar tudo nem
+   * lembrar o preço de cabeça toda vez. */
+  function handleRacaChange(value: string) {
+    setRacaValue(value);
+    if (product || value === NOVA_RACA) return;
+
+    const defaults = racaDefaults[value];
+    if (!defaults) return;
+    setCategoryValue(defaults.categoryId ?? "");
+    setPriceValue(toPriceInputValue(defaults.price));
+  }
 
   return (
     <form action={formAction} className="max-w-3xl space-y-6">
@@ -78,7 +103,7 @@ export function ProductForm({
           <select
             id="raca_nome"
             value={racaValue}
-            onChange={(e) => setRacaValue(e.target.value)}
+            onChange={(e) => handleRacaChange(e.target.value)}
             className={inputClass}
             {...(racaValue !== NOVA_RACA ? { name: "name" } : {})}
           >
@@ -89,6 +114,13 @@ export function ProductForm({
               </option>
             ))}
           </select>
+          {!product && (
+            <p className="mt-1.5 text-xs text-brand-ink/50">
+              Escolhendo uma raça já cadastrada, Categoria e Preço abaixo já
+              vêm preenchidos sozinhos (com o que foi usado da última vez) —
+              pode editar à vontade antes de salvar.
+            </p>
+          )}
           {/* Raça nova entra direto aqui, igual ao padrão de "+ Nova
               categoria" abaixo — sem precisar de outra tela antes. */}
           {racaValue === NOVA_RACA && (
@@ -149,7 +181,8 @@ export function ProductForm({
             type="text"
             inputMode="decimal"
             placeholder="15,00"
-            defaultValue={product?.price ?? ""}
+            value={priceValue}
+            onChange={(e) => setPriceValue(e.target.value)}
             className={inputClass}
           />
         </div>
@@ -213,7 +246,7 @@ export function ProductForm({
             <input
               type="checkbox"
               name="active"
-              defaultChecked={product?.active ?? false}
+              defaultChecked={product?.active ?? true}
               className="h-4 w-4 rounded border-brand-sand text-brand-green focus:ring-brand-green"
             />
             Ativo (visível no site)

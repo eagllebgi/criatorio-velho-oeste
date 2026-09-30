@@ -22,9 +22,20 @@ export default async function EditarProdutoPage(
   // Nomes de outras raças já cadastradas (exclui a própria, senão ela
   // apareceria duplicada — uma vez como opção selecionável e outra como
   // valor atual já preenchido).
-  const existingNames = Array.from(
-    new Set(products.filter((p) => p.id !== id).map((p) => p.name)),
-  ).sort((a, b) => a.localeCompare(b, "pt-BR"));
+  const outrasRacas = products.filter((p) => p.id !== id);
+  const existingNames = Array.from(new Set(outrasRacas.map((p) => p.name))).sort((a, b) =>
+    a.localeCompare(b, "pt-BR"),
+  );
+
+  // O ProductForm exige essa prop, mas o preenchimento automático só roda
+  // no CADASTRO de item novo (quando não existe um "product" — ver
+  // ProductForm.tsx), então aqui em edição o conteúdo nem chega a ser usado.
+  const racaDefaults: Record<string, { categoryId: string | null; price: number | null }> = {};
+  for (const p of outrasRacas) {
+    if (!(p.name in racaDefaults)) {
+      racaDefaults[p.name] = { categoryId: p.categoryId, price: p.price };
+    }
+  }
 
   const supabase = await createClient();
   const { data: imageRows } = await supabase
@@ -60,6 +71,7 @@ export default async function EditarProdutoPage(
           product={product}
           categories={categories}
           existingNames={existingNames}
+          racaDefaults={racaDefaults}
           action={boundUpdate}
           submitLabel="Salvar alterações"
         />
