@@ -63,10 +63,10 @@ export async function deleteTransacao(id: string) {
   revalidateFinanceiroPaths();
 }
 
-/** Venda rápida atrelada a um produto do catálogo (ovo ou ave): gera a
- * descrição sozinha (ex: "3 Ovos de Angola", "1 unidade de Ave Legbar"),
- * lança a entrada no financeiro e já desconta do estoque — sem precisar abrir
- * o cadastro de produtos pra fazer as duas coisas separado. */
+/** Venda rápida atrelada a um produto do catálogo (só Ovo — ver nota abaixo):
+ * gera a descrição sozinha (ex: "3 Ovos de Angola"), lança a entrada no
+ * financeiro e já desconta do estoque — sem precisar abrir o cadastro de
+ * produtos pra fazer as duas coisas separado. */
 export async function createVendaRapida(
   _prevState: FinanceiroFormState,
   formData: FormData,
@@ -91,6 +91,20 @@ export async function createVendaRapida(
     .maybeSingle();
 
   if (fetchError || !product) return { error: "Produto não encontrado." };
+
+  // Estoque de Ave é calculado sozinho a partir do Plantel (contagem de aves
+  // "Disponível" daquela raça — ver recompute_ave_stock_for_especie em
+  // 0008_postura_login_ave_stock.sql), não um número editável. Descontar
+  // aqui só ia ser sobrescrito no próximo recálculo, e nenhuma ave específica
+  // ficaria marcada como vendida no Plantel — por isso essa venda não pode
+  // passar por aqui. Use "Dar baixa" em /admin/aves pra vender uma ave viva.
+  if (product.product_type === "ave") {
+    return {
+      error:
+        'Venda de ave viva não é feita por aqui — o estoque de Aves é calculado pelo Plantel. Use "Dar baixa" em Aves > Plantel pra registrar a venda.',
+    };
+  }
+
   if (quantidade > product.stock) {
     return { error: `Só há ${product.stock} em estoque.` };
   }
@@ -101,10 +115,7 @@ export async function createVendaRapida(
     .eq("id", productId);
   if (stockError) return { error: stockError.message };
 
-  const isAve = product.product_type === "ave";
-  const descricao = isAve
-    ? `${quantidade} ${quantidade === 1 ? "unidade" : "unidades"} de Ave ${product.name}`
-    : `${quantidade} ${quantidade === 1 ? "Ovo" : "Ovos"} de ${product.name}`;
+  const descricao = `${quantidade} ${quantidade === 1 ? "Ovo" : "Ovos"} de ${product.name}`;
 
   const { error: insertError } = await supabase.from("financeiro").insert({
     tipo: "entrada",
@@ -120,8 +131,6 @@ export async function createVendaRapida(
   revalidatePath("/admin/produtos");
   revalidatePath("/ovos");
   revalidatePath("/ovos/[slug]", "page");
-  revalidatePath("/aves");
-  revalidatePath("/aves/[slug]", "page");
   revalidatePath("/");
   return { error: null };
 }

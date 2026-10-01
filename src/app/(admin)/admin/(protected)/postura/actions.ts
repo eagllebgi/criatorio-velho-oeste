@@ -15,6 +15,43 @@ function revalidatePosturaPaths() {
   revalidatePath("/admin/aves");
   revalidatePath("/admin/financeiro");
   revalidatePath("/admin");
+  // A maioria das ações aqui (chocadeira, venda rápida, descarte, exclusão)
+  // agora também ajusta o estoque de Ovo (ver adjustEstoqueOvo abaixo) —
+  // precisa revalidar Produtos e o catálogo público pra essa mudança aparecer,
+  // mesmo padrão usado em revalidateGestaoPaths (baias/actions.ts).
+  revalidatePath("/admin/produtos");
+  revalidatePath("/ovos");
+  revalidatePath("/ovos/[slug]", "page");
+}
+
+type SupabaseClient = Awaited<ReturnType<typeof createClient>>;
+
+/** Ajusta o estoque de Ovo da espécie da baia informada, somando `delta`
+ * (pode ser negativo). Só lotes com destino "venda" chegaram a contribuir
+ * pro estoque (gatilho de INSERT em lotes_postura — ver
+ * 0008_postura_login_ave_stock.sql), então só eles devem ser descontados
+ * aqui — chame isso apenas quando `lote.destino === "venda"`. Falha
+ * silenciosamente (sem quebrar a ação principal) se a baia não for
+ * encontrada; erros da própria função ficam pro chamador decidir. */
+async function adjustEstoqueOvo(
+  supabase: SupabaseClient,
+  baiaId: string,
+  delta: number,
+): Promise<string | null> {
+  if (delta === 0) return null;
+
+  const { data: baia } = await supabase
+    .from("baias")
+    .select("especie")
+    .eq("id", baiaId)
+    .maybeSingle();
+  if (!baia?.especie) return null;
+
+  const { error } = await supabase.rpc("adjust_ovo_stock", {
+    p_especie: baia.especie,
+    p_delta: delta,
+  });
+  return error?.message ?? null;
 }
 
 /** Envia (todo ou parte) um lote pra chocadeira. Se a quantidade for menor que
@@ -64,6 +101,14 @@ export async function enviarChocadeira(loteId: string, quantidade: number): Prom
       .update({ status: "Incubando", destino: "choc", eclosao_prevista: eclosaoPrevista })
       .eq("id", loteId);
     if (updateError) return { error: updateError.message };
+  }
+
+  // A parte que foi pra chocadeira deixa de estar "Disponível" pra venda —
+  // se o lote original era destino "venda", ele tinha somado ao estoque de
+  // Ovo quando nasceu, então desconta agora a quantidade que saiu.
+  if (lote.destino === "venda") {
+    const stockError = await adjustEstoqueOvo(supabase, lote.baia_id, -quantidade);
+    if (stockError) return { error: stockError };
   }
 
   revalidatePosturaPaths();
@@ -146,25 +191,68 @@ export async function venderLoteRapido(loteId: string, quantidade: number): Prom
     if (financeiroError) return { error: financeiroError.message };
   }
 
+  // O que foi vendido sai do estoque de Ovo (só descontava na venda pelo site
+  // via Financeiro "Venda de produto" — essa venda direto pelo lote nunca
+  // tinha mexido no estoque).
+  if (lote.destino === "venda") {
+    const stockError = await adjustEstoqueOvo(supabase, lote.baia_id, -quantidade);
+    if (stockError) return { error: stockError };
+  }
+
   revalidatePosturaPaths();
   return { error: null };
 }
 
 /** Ações simples de troca de status: devolver aos disponíveis, disponibilizar
- * um lote reservado, ou descartar. */
+ * um lote reservado, ou descartar. Ajusta o estoque de Ovo na transição,
+ * já que um lote "Descartado" não deve continuar contando como disponível
+ * pra venda, e um lote que volta de "Descartado" pra "Disponível" deve
+ * voltar a contar. */
 export async function atualizarStatusLote(
   loteId: string,
   status: "Disponível" | "Descartado",
 ): Promise<ActionResult> {
   const supabase = await createClient();
+  const { data: lote, error: fetchError } = await supabase
+    .from("lotes_postura")
+    .select("baia_id, destino, quantidade, status")
+    .eq("id", loteId)
+    .maybeSingle();
+  if (fetchError || !lote) return { error: "Lote não encontrado." };
+
   const { error } = await supabase.from("lotes_postura").update({ status }).eq("id", loteId);
   if (error) return { error: error.message };
+
+  if (lote.destino === "venda") {
+    if (status === "Descartado" && lote.status === "Disponível") {
+      const stockError = await adjustEstoqueOvo(supabase, lote.baia_id, -lote.quantidade);
+      if (stockError) return { error: stockError };
+    } else if (status === "Disponível" && lote.status === "Descartado") {
+      const stockError = await adjustEstoqueOvo(supabase, lote.baia_id, lote.quantidade);
+      if (stockError) return { error: stockError };
+    }
+  }
+
   revalidatePosturaPaths();
   return { error: null };
 }
 
 export async function deleteLote(loteId: string) {
   const supabase = await createClient();
+  const { data: lote } = await supabase
+    .from("lotes_postura")
+    .select("baia_id, destino, quantidade, status")
+    .eq("id", loteId)
+    .maybeSingle();
+
   await supabase.from("lotes_postura").delete().eq("id", loteId);
+
+  // Se o lote excluído ainda estava "Disponível" com destino "venda", ele
+  // ainda estava contando no estoque de Ovo — desconta antes de sumir,
+  // senão o produto fica com estoque "fantasma" que nunca mais existiu.
+  if (lote?.destino === "venda" && lote.status === "Disponível") {
+    await adjustEstoqueOvo(supabase, lote.baia_id, -lote.quantidade);
+  }
+
   revalidatePosturaPaths();
 }

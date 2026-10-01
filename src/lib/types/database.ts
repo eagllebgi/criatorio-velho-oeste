@@ -328,6 +328,14 @@ export interface Database {
         Args: { p_especie: string };
         Returns: { qtd_ate_5: number; qtd_ate_7: number }[];
       };
+      // Ajusta (soma ou subtrai) o estoque de Ovo da raça informada — chamada
+      // pelas actions de postura.ts sempre que um lote com destino "venda"
+      // sai ou volta pro "Disponível" (chocadeira, venda rápida, descarte,
+      // exclusão). Veja 0010_ajuste_estoque_ovo.sql.
+      adjust_ovo_stock: {
+        Args: { p_especie: string; p_delta: number };
+        Returns: undefined;
+      };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;

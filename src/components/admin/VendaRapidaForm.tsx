@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import type { Product } from "@/lib/types/domain";
 import { FORMA_PAGAMENTO_LABELS } from "@/lib/types/domain";
@@ -11,15 +12,17 @@ import {
 
 const initialState: FinanceiroFormState = { error: null };
 
-/** Lança uma venda direto a partir de um produto do catálogo (ovo ou ave):
- * escolhe o produto, a quantidade e confere o preço — a descrição do
- * lançamento e o desconto do estoque acontecem sozinhos. Só lista produtos
- * ativos com estoque, já que não dá pra vender o que não existe. */
+/** Lança uma venda direto a partir de um produto Ovo do catálogo: escolhe o
+ * produto, a quantidade e confere o preço — a descrição do lançamento e o
+ * desconto do estoque acontecem sozinhos. Só lista Ovos ativos com estoque
+ * — Aves não entram aqui porque o estoque delas é calculado sozinho pelo
+ * Plantel (ver "Dar baixa" em /admin/aves), não um número que dá pra
+ * simplesmente descontar. */
 export function VendaRapidaForm({ products }: { products: Product[] }) {
   const disponiveis = useMemo(
     () =>
       products
-        .filter((p) => p.active && p.stock > 0)
+        .filter((p) => p.active && p.stock > 0 && p.productType === "ovo")
         .sort((a, b) => a.name.localeCompare(b.name, "pt-BR")),
     [products],
   );
@@ -59,14 +62,27 @@ export function VendaRapidaForm({ products }: { products: Product[] }) {
   if (disponiveis.length === 0) {
     return (
       <p className="mt-4 rounded-lg border border-dashed border-brand-sand bg-brand-cream-dark/30 p-4 text-sm text-brand-ink/60">
-        Nenhum produto ativo com estoque disponível agora. Reponha o estoque em Produtos pra vender por aqui.
+        Nenhum ovo ativo com estoque disponível agora. Reponha o estoque em Produtos pra vender por aqui. Pra
+        vender uma ave viva, use{" "}
+        <Link href="/admin/aves" className="font-medium text-brand-green hover:underline">
+          Dar baixa no Plantel
+        </Link>
+        .
       </p>
     );
   }
 
   return (
     <form ref={formRef} action={formAction} className="mt-4">
-      <div className="grid gap-3 sm:grid-cols-2">
+      <p className="text-xs text-brand-ink/50">
+        Só ovos aparecem aqui — pra vender uma ave viva, use{" "}
+        <Link href="/admin/aves" className="font-medium text-brand-green hover:underline">
+          Dar baixa no Plantel
+        </Link>
+        .
+      </p>
+
+      <div className="mt-3 grid gap-3 sm:grid-cols-2">
         <div className="sm:col-span-2">
           <label htmlFor="venda-produto" className="block text-sm font-medium text-brand-ink">
             Produto
@@ -78,28 +94,11 @@ export function VendaRapidaForm({ products }: { products: Product[] }) {
             onChange={(e) => handleSelectProduct(e.target.value)}
             className="mt-1.5 w-full rounded-lg border border-brand-sand bg-white px-4 py-2.5 text-sm text-brand-ink outline-none focus:border-brand-green focus:ring-1 focus:ring-brand-green"
           >
-            {disponiveis.some((p) => p.productType === "ovo") && (
-              <optgroup label="Ovos">
-                {disponiveis
-                  .filter((p) => p.productType === "ovo")
-                  .map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name} — {p.stock} em estoque
-                    </option>
-                  ))}
-              </optgroup>
-            )}
-            {disponiveis.some((p) => p.productType === "ave") && (
-              <optgroup label="Aves">
-                {disponiveis
-                  .filter((p) => p.productType === "ave")
-                  .map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name} — {p.stock} em estoque
-                    </option>
-                  ))}
-              </optgroup>
-            )}
+            {disponiveis.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name} — {p.stock} em estoque
+              </option>
+            ))}
           </select>
         </div>
 
