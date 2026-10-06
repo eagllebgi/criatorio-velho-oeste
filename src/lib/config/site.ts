@@ -21,6 +21,10 @@ export const siteConfig = {
     groupInviteUrl: "https://chat.whatsapp.com/JDqLUnzG1xS5O5uzRxhoQT",
   },
 
+  // ID do Pixel da Meta (Gerenciador de Eventos > Conjuntos de dados >
+  // "Criatório"). Mede visitas, cliques no WhatsApp e entradas no grupo.
+  metaPixelId: "1188295549862898",
+
   social: {
     instagram: "https://www.instagram.com/criatoriovelho_oeste/",
     facebook:

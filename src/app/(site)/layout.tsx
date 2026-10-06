@@ -8,6 +8,7 @@ import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { CartDrawer } from "@/components/cart/CartDrawer";
 import { getAdminUser } from "@/lib/supabase/server";
+import { MetaPixel } from "@/components/analytics/MetaPixel";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -52,6 +53,8 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       className={`${inter.variable} ${fraunces.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col bg-brand-cream text-brand-ink">
+        {/* Admin logado não conta como visita nas métricas dos anúncios. */}
+        {!isAdmin && <MetaPixel />}
         <CartProvider>
           {isAdmin && (
             <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 bg-brand-gold px-4 py-2 text-center text-xs font-medium text-brand-ink sm:text-sm">
