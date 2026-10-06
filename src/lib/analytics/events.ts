@@ -10,7 +10,8 @@ export type AnalyticsEventName =
   | "add_to_cart"
   | "remove_from_cart"
   | "begin_whatsapp_order"
-  | "whatsapp_click";
+  | "whatsapp_click"
+  | "group_join_click";
 
 declare global {
   interface Window {

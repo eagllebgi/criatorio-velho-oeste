@@ -16,6 +16,9 @@ export const siteConfig = {
     number: "5518991309522",
     // Formato de exibição
     display: "(18) 99130-9522",
+    // Link de convite do grupo de ofertas (usado na página /grupo, destino
+    // dos anúncios da Meta). Se o link do grupo mudar, troque só aqui.
+    groupInviteUrl: "https://chat.whatsapp.com/JDqLUnzG1xS5O5uzRxhoQT",
   },
 
   social: {
