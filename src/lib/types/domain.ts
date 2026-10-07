@@ -15,6 +15,14 @@ export interface Product {
   shortDescription: string | null;
   description: string | null;
   price: number | null;
+  /** Preço por idade — só faz sentido quando productType é "ave" (ver
+   * migration 0012). O `price` acima continua sendo o preço único mostrado
+   * na lista geral (/aves) e usado no pedido pelo WhatsApp; esses 4 são só
+   * informativos, mostrados como tabela na página da própria ave. */
+  price1To30: number | null;
+  price31To60: number | null;
+  price61To90: number | null;
+  price91To120: number | null;
   stock: number;
   lowStockThreshold: number;
   mainImage: string | null;

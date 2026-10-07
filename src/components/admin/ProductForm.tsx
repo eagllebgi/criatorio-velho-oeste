@@ -50,6 +50,16 @@ export function ProductForm({
   const [state, formAction, pending] = useActionState(action, initialState);
   const [categoryValue, setCategoryValue] = useState(product?.categoryId ?? "");
   const [priceValue, setPriceValue] = useState(() => toPriceInputValue(product?.price ?? null));
+  const [price1To30, setPrice1To30] = useState(() => toPriceInputValue(product?.price1To30 ?? null));
+  const [price31To60, setPrice31To60] = useState(() =>
+    toPriceInputValue(product?.price31To60 ?? null),
+  );
+  const [price61To90, setPrice61To90] = useState(() =>
+    toPriceInputValue(product?.price61To90 ?? null),
+  );
+  const [price91To120, setPrice91To120] = useState(() =>
+    toPriceInputValue(product?.price91To120 ?? null),
+  );
   const [racaValue, setRacaValue] = useState(() => {
     if (!product) return NOVA_RACA;
     return existingNames.includes(product.name) ? product.name : NOVA_RACA;
@@ -226,6 +236,80 @@ export function ProductForm({
             />
           )}
         </div>
+
+        {isAve && (
+          <div className="sm:col-span-2 rounded-xl border border-dashed border-brand-gold bg-brand-gold/5 p-4">
+            <p className="text-sm font-medium text-brand-ink">Preço por idade da ave (opcional)</p>
+            <p className="mt-1 text-xs text-brand-ink/50">
+              O Preço (R$) acima continua sendo o que aparece na lista geral e no pedido pelo
+              WhatsApp — pode deixar em branco pra aparecer &quot;Consultar&quot;. Esses 4 campos
+              são só pra mostrar, na página dessa ave, quanto custa conforme a idade dela; quem
+              compra confirma o valor certo pelo WhatsApp.
+            </p>
+            <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <div>
+                <label htmlFor="price_1_30" className="block text-xs font-medium text-brand-ink/70">
+                  1 a 30 dias
+                </label>
+                <input
+                  id="price_1_30"
+                  name="price_1_30"
+                  type="text"
+                  inputMode="decimal"
+                  placeholder="15,00"
+                  value={price1To30}
+                  onChange={(e) => setPrice1To30(e.target.value)}
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label htmlFor="price_31_60" className="block text-xs font-medium text-brand-ink/70">
+                  31 a 60 dias
+                </label>
+                <input
+                  id="price_31_60"
+                  name="price_31_60"
+                  type="text"
+                  inputMode="decimal"
+                  placeholder="25,00"
+                  value={price31To60}
+                  onChange={(e) => setPrice31To60(e.target.value)}
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label htmlFor="price_61_90" className="block text-xs font-medium text-brand-ink/70">
+                  61 a 90 dias
+                </label>
+                <input
+                  id="price_61_90"
+                  name="price_61_90"
+                  type="text"
+                  inputMode="decimal"
+                  placeholder="35,00"
+                  value={price61To90}
+                  onChange={(e) => setPrice61To90(e.target.value)}
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label htmlFor="price_91_120" className="block text-xs font-medium text-brand-ink/70">
+                  91 a 120 dias
+                </label>
+                <input
+                  id="price_91_120"
+                  name="price_91_120"
+                  type="text"
+                  inputMode="decimal"
+                  placeholder="45,00"
+                  value={price91To120}
+                  onChange={(e) => setPrice91To120(e.target.value)}
+                  className={inputClass}
+                />
+              </div>
+            </div>
+          </div>
+        )}
 
         <div>
           <label htmlFor="low_stock_threshold" className="block text-sm font-medium text-brand-ink">

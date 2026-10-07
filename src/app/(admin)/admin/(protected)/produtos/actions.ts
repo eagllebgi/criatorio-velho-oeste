@@ -19,6 +19,13 @@ function parseProductForm(formData: FormData) {
   const shortDescription = String(formData.get("short_description") ?? "").trim() || null;
   const description = String(formData.get("description") ?? "").trim() || null;
   const priceRaw = String(formData.get("price") ?? "").trim();
+  // Preço por idade — só o ProductForm manda esses campos quando o tipo é
+  // "ave" (ver ProductForm.tsx); pra "ovo" eles nem existem no formulário,
+  // então ficam null aqui, igual ao resto dos 4 campos quando em branco.
+  const price1To30Raw = String(formData.get("price_1_30") ?? "").trim();
+  const price31To60Raw = String(formData.get("price_31_60") ?? "").trim();
+  const price61To90Raw = String(formData.get("price_61_90") ?? "").trim();
+  const price91To120Raw = String(formData.get("price_91_120") ?? "").trim();
   const lowStockRaw = String(formData.get("low_stock_threshold") ?? "5").trim();
   const active = formData.get("active") === "on";
   const featured = formData.get("featured") === "on";
@@ -38,6 +45,10 @@ function parseProductForm(formData: FormData) {
     short_description: shortDescription,
     description,
     price: priceRaw ? Number(priceRaw.replace(",", ".")) : null,
+    price_1_30: price1To30Raw ? Number(price1To30Raw.replace(",", ".")) : null,
+    price_31_60: price31To60Raw ? Number(price31To60Raw.replace(",", ".")) : null,
+    price_61_90: price61To90Raw ? Number(price61To90Raw.replace(",", ".")) : null,
+    price_91_120: price91To120Raw ? Number(price91To120Raw.replace(",", ".")) : null,
     stock,
     low_stock_threshold: Number(lowStockRaw) || 0,
     active,
@@ -172,4 +183,94 @@ export async function deleteProduct(productId: string) {
   revalidatePath("/admin/produtos");
   revalidatePath("/ovos");
   revalidatePath("/aves");
+}
+
+/**
+ * "Duplicar" — cria uma cópia de um produto já cadastrado (mesmo tipo,
+ * categoria, descrição, preços e fotos) pra não ter que preencher tudo de
+ * novo quando a raça já existe e só falta criar a outra versão dela (ex: já
+ * tem o Ovo da Angola Canela, quer criar a Ave) ou uma variação parecida.
+ * A cópia nasce INATIVA (nunca aparece no site sozinha) e com nome
+ * "(cópia)" no final, justamente pra forçar passar pela tela de edição antes
+ * de publicar — trocar o tipo/nome/preço e, se for o caso, ativar.
+ *
+ * Estoque sempre começa zerado na cópia: mesmo copiando um Ovo com estoque
+ * físico de verdade, esses ovos continuam sendo do item original, não da
+ * cópia — então nunca faz sentido herdar o número.
+ */
+export async function duplicateProduct(productId: string) {
+  const supabase = await createClient();
+
+  const { data: source, error: fetchError } = await supabase
+    .from("products")
+    .select("*, product_images ( image_url, display_order )")
+    .eq("id", productId)
+    .maybeSingle();
+
+  if (fetchError || !source) {
+    redirect("/admin/produtos");
+  }
+
+  const baseName = `${source.name} (cópia)`;
+  const baseSlug = slugify(baseName);
+
+  // Slug único por tipo (ver 0005_produtos_financeiro.sql) — tenta o slug
+  // "normal" da cópia e, se já existir (ex: duplicou a mesma raça mais de uma
+  // vez), vai incrementando até achar um livre.
+  let slug = baseSlug;
+  for (let attempt = 2; ; attempt++) {
+    const { data: clash } = await supabase
+      .from("products")
+      .select("id")
+      .eq("slug", slug)
+      .eq("product_type", source.product_type)
+      .maybeSingle();
+    if (!clash) break;
+    slug = `${baseSlug}-${attempt}`;
+  }
+
+  const { data: created, error: insertError } = await supabase
+    .from("products")
+    .insert({
+      name: baseName,
+      slug,
+      category_id: source.category_id,
+      short_description: source.short_description,
+      description: source.description,
+      price: source.price,
+      price_1_30: source.price_1_30,
+      price_31_60: source.price_31_60,
+      price_61_90: source.price_61_90,
+      price_91_120: source.price_91_120,
+      stock: 0,
+      low_stock_threshold: source.low_stock_threshold,
+      main_image: source.main_image,
+      active: false,
+      featured: false,
+      display_order: source.display_order,
+      product_type: source.product_type,
+    })
+    .select("id")
+    .single();
+
+  if (insertError || !created) {
+    redirect("/admin/produtos");
+  }
+
+  // Copia a galeria de fotos também (reaproveita as mesmas URLs do Storage —
+  // não reenvia arquivo nenhum, mesmo princípio da cascata automática de
+  // fotos entre raça/baia/ave em 0006_fotos_cascata.sql).
+  const images = (source.product_images ?? []) as { image_url: string; display_order: number }[];
+  if (images.length > 0) {
+    await supabase.from("product_images").insert(
+      images.map((img) => ({
+        product_id: created.id,
+        image_url: img.image_url,
+        display_order: img.display_order,
+      })),
+    );
+  }
+
+  revalidatePath("/admin/produtos");
+  redirect(`/admin/produtos/${created.id}`);
 }

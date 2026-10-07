@@ -46,6 +46,10 @@ export interface Database {
           short_description: string | null;
           description: string | null;
           price: number | null;
+          price_1_30: number | null;
+          price_31_60: number | null;
+          price_61_90: number | null;
+          price_91_120: number | null;
           stock: number;
           low_stock_threshold: number;
           main_image: string | null;
@@ -64,6 +68,10 @@ export interface Database {
           short_description?: string | null;
           description?: string | null;
           price?: number | null;
+          price_1_30?: number | null;
+          price_31_60?: number | null;
+          price_61_90?: number | null;
+          price_91_120?: number | null;
           stock?: number;
           low_stock_threshold?: number;
           main_image?: string | null;

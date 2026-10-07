@@ -6,10 +6,11 @@ import { getProductBySlug } from "@/lib/data/products";
 import { formatBRL } from "@/lib/utils";
 import { StockBadge } from "@/components/catalog/StockBadge";
 import { AdminPriceControl } from "@/components/catalog/AdminPriceControl";
+import { AveAgePriceTable } from "@/components/catalog/AveAgePriceTable";
 import { ProductDetailPurchase } from "@/components/catalog/ProductDetailPurchase";
 import { ProductGallery } from "@/components/catalog/ProductGallery";
 import { siteConfig } from "@/lib/config/site";
-import { getAdminUser } from "@/lib/supabase/server";
+import { getEffectiveAdminUser } from "@/lib/supabase/server";
 
 export async function generateMetadata(
   props: PageProps<"/aves/[slug]">,
@@ -38,7 +39,7 @@ export default async function AvePage(props: PageProps<"/aves/[slug]">) {
   const { slug } = await props.params;
   const [product, adminUser] = await Promise.all([
     getProductBySlug(slug, "ave"),
-    getAdminUser(),
+    getEffectiveAdminUser(),
   ]);
 
   if (!product || product.productType !== "ave") notFound();
@@ -116,6 +117,8 @@ export default async function AvePage(props: PageProps<"/aves/[slug]">) {
               Estoque calculado automaticamente pelo Plantel.
             </p>
           )}
+
+          <AveAgePriceTable product={product} />
 
           {(product.description || product.shortDescription) && (
             <p className="text-sm leading-relaxed text-brand-ink/70 sm:text-base">

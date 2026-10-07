@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { CatalogClient } from "@/components/catalog/CatalogClient";
 import { EmptyState } from "@/components/catalog/EmptyState";
 import { getActiveCategories, getActiveProducts } from "@/lib/data/products";
-import { getAdminUser } from "@/lib/supabase/server";
+import { getEffectiveAdminUser } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
   title: "Aves Vivas",
@@ -14,7 +14,7 @@ export default async function AvesPage() {
   const [products, categories, adminUser] = await Promise.all([
     getActiveProducts("ave"),
     getActiveCategories(),
-    getAdminUser(),
+    getEffectiveAdminUser(),
   ]);
   const isAdmin = Boolean(adminUser);
 

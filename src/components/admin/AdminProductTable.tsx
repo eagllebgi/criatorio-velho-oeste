@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useMemo, useRef, useState, useTransition } from "react";
-import { ImageOff, Loader2, Pencil, Search, Trash2 } from "lucide-react";
+import { Copy, ImageOff, Loader2, Pencil, Search, Trash2 } from "lucide-react";
 import type { Product, ProductType } from "@/lib/types/domain";
 import { Badge } from "@/components/ui/Badge";
 import { cn } from "@/lib/utils";
@@ -14,6 +14,7 @@ import { parsePriceInput, toPriceInputValue } from "@/lib/utils";
 import type { FrescorConfig, OvoFreshnessBuckets } from "@/lib/data/admin";
 import {
   deleteProduct,
+  duplicateProduct,
   toggleProductActive,
   toggleProductFeatured,
 } from "@/app/(admin)/admin/(protected)/produtos/actions";
@@ -72,6 +73,13 @@ export function AdminProductTable({
       return;
     }
     startTransition(() => deleteProduct(id));
+  }
+
+  /** Cria uma cópia (mesma categoria, descrição, preços e fotos) e já manda
+   * pra tela de edição dela — pra quando a raça já existe e só falta criar a
+   * outra versão (ex: já tem o Ovo, falta a Ave) sem digitar tudo de novo. */
+  function handleDuplicate(id: string) {
+    startTransition(() => duplicateProduct(id));
   }
 
   const searchBox = (
@@ -230,6 +238,16 @@ export function AdminProductTable({
                     <button
                       type="button"
                       disabled={isPending}
+                      onClick={() => handleDuplicate(product.id)}
+                      aria-label={`Duplicar ${product.name}`}
+                      title="Duplicar"
+                      className="flex h-8 w-8 items-center justify-center rounded-full text-brand-ink/50 hover:bg-brand-gold/20 hover:text-brand-brown-dark"
+                    >
+                      <Copy className="h-4 w-4" aria-hidden="true" />
+                    </button>
+                    <button
+                      type="button"
+                      disabled={isPending}
                       onClick={() => handleDelete(product.id, product.name)}
                       aria-label={`Excluir ${product.name}`}
                       className="flex h-8 w-8 items-center justify-center rounded-full text-brand-ink/50 hover:bg-red-50 hover:text-red-600"
@@ -272,6 +290,16 @@ export function AdminProductTable({
                     >
                       <Pencil className="h-4 w-4" aria-hidden="true" />
                     </Link>
+                    <button
+                      type="button"
+                      disabled={isPending}
+                      onClick={() => handleDuplicate(product.id)}
+                      aria-label={`Duplicar ${product.name}`}
+                      title="Duplicar"
+                      className="flex h-8 w-8 items-center justify-center rounded-full text-brand-ink/50 hover:bg-brand-gold/20 hover:text-brand-brown-dark"
+                    >
+                      <Copy className="h-4 w-4" aria-hidden="true" />
+                    </button>
                     <button
                       type="button"
                       disabled={isPending}

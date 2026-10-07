@@ -10,7 +10,7 @@ import { AdminPriceControl } from "@/components/catalog/AdminPriceControl";
 import { ProductDetailPurchase } from "@/components/catalog/ProductDetailPurchase";
 import { ProductGallery } from "@/components/catalog/ProductGallery";
 import { siteConfig } from "@/lib/config/site";
-import { getAdminUser } from "@/lib/supabase/server";
+import { getEffectiveAdminUser } from "@/lib/supabase/server";
 
 export async function generateMetadata(
   props: PageProps<"/ovos/[slug]">,
@@ -39,7 +39,7 @@ export default async function ProductPage(props: PageProps<"/ovos/[slug]">) {
   const { slug } = await props.params;
   const [product, adminUser] = await Promise.all([
     getProductBySlug(slug, "ovo"),
-    getAdminUser(),
+    getEffectiveAdminUser(),
   ]);
 
   if (!product || product.productType !== "ovo") notFound();

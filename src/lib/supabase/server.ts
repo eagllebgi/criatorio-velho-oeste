@@ -53,3 +53,33 @@ export const getAdminUser = cache(async () => {
   } = await supabase.auth.getUser();
   return user;
 });
+
+/** Nome do cookie do "Ver como visitante" (ver AdminPreviewBar.tsx e
+ * @/lib/actions/preview.ts) — cookie simples, fora do Supabase Auth: a
+ * sessão do admin continua logada o tempo todo, isso só muda o que as
+ * páginas públicas MOSTRAM pra ele. */
+export const PREVIEW_VISITOR_COOKIE = "cv_preview_visitor";
+
+/** true quando o admin logado ativou "Ver como visitante" — só tem efeito
+ * em quem realmente está logado (ver getEffectiveAdminUser abaixo); num
+ * visitante comum esse cookie não muda nada, porque ele já não é admin. */
+export async function isPreviewingAsVisitor(): Promise<boolean> {
+  const cookieStore = await cookies();
+  return cookieStore.get(PREVIEW_VISITOR_COOKIE)?.value === "1";
+}
+
+/**
+ * Usada nas páginas PÚBLICAS no lugar de getAdminUser() direto: devolve o
+ * mesmo usuário admin, exceto quando "Ver como visitante" está ativo — nesse
+ * caso devolve null, fazendo a página renderizar exatamente como um cliente
+ * comum veria (sem estoque exato, sem controles de edição), mesmo com o
+ * admin de verdade logado. É só uma troca de visual: o banco continua
+ * recusando qualquer escrita de quem não estiver autenticado de verdade, tal
+ * qual getAdminUser já documentava.
+ */
+export const getEffectiveAdminUser = cache(async () => {
+  const user = await getAdminUser();
+  if (!user) return null;
+  if (await isPreviewingAsVisitor()) return null;
+  return user;
+});
