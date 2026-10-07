@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useActionState, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import {
+  ArrowUpDown,
   BarChart3,
   ChevronDown,
   ChevronRight,
@@ -25,7 +26,8 @@ import { createClient } from "@/lib/supabase/client";
 import { buildBaiaImagePath } from "@/lib/storage";
 import { ImageCropModal } from "@/components/admin/ImageCropModal";
 import { BaiaQrCode } from "@/components/admin/BaiaQrCode";
-import { PosturaBarChart, type PosturaSeriesPoint } from "@/components/admin/PosturaBarChart";
+import { PosturaBarChart } from "@/components/admin/PosturaBarChart";
+import { buildDailySeries } from "@/lib/postura";
 import {
   createBaia,
   createObservacao,
@@ -36,7 +38,7 @@ import {
   updateBaiaStatusQuick,
   type FormState,
 } from "@/app/(admin)/admin/(protected)/baias/actions";
-import { createAvesLote } from "@/app/(admin)/admin/(protected)/aves/actions";
+import { createAvesLote, deleteAve } from "@/app/(admin)/admin/(protected)/aves/actions";
 
 const BUCKET = "product-images";
 
@@ -57,6 +59,15 @@ const destinoTone: Record<Baia["destinoPadrao"], BadgeTone> = {
   reservado: "low",
   descarte: "out",
 };
+
+type SortMode = "numero" | "nome" | "especie" | "aves";
+
+const SORT_OPTIONS: { value: SortMode; label: string }[] = [
+  { value: "numero", label: "Número da baia" },
+  { value: "nome", label: "Nome (A-Z)" },
+  { value: "especie", label: "Espécie (A-Z)" },
+  { value: "aves", label: "Mais aves primeiro" },
+];
 
 export function BaiasManager({
   baias,
@@ -81,6 +92,7 @@ export function BaiasManager({
   const [avesFor, setAvesFor] = useState<Baia | null>(null);
   const [graficoFor, setGraficoFor] = useState<Baia | null>(null);
   const [search, setSearch] = useState("");
+  const [sortMode, setSortMode] = useState<SortMode>("numero");
   const [isPending, startTransition] = useTransition();
 
   const filteredBaias = useMemo(() => {
@@ -94,6 +106,28 @@ export function BaiasManager({
         (baia.setor ?? "").toLowerCase().includes(term),
     );
   }, [baias, search]);
+
+  // "Número" é a ordem que já vem do servidor (ver getAllBaiasAdmin) — não
+  // precisa reordenar de novo. Os outros modos só entram em ação quando
+  // escolhidos no seletor, sem mexer na ordem padrão do dia a dia.
+  const sortedBaias = useMemo(() => {
+    if (sortMode === "numero") return filteredBaias;
+    const copy = [...filteredBaias];
+    switch (sortMode) {
+      case "nome":
+        copy.sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+        break;
+      case "especie":
+        copy.sort(
+          (a, b) => a.especie.localeCompare(b.especie, "pt-BR") || a.nome.localeCompare(b.nome, "pt-BR"),
+        );
+        break;
+      case "aves":
+        copy.sort((a, b) => b.totalAves - a.totalAves || a.nome.localeCompare(b.nome, "pt-BR"));
+        break;
+    }
+    return copy;
+  }, [filteredBaias, sortMode]);
 
   function handleDelete(baia: Baia) {
     if (
@@ -122,6 +156,28 @@ export function BaiasManager({
             className="w-full rounded-full border border-brand-sand bg-white py-2.5 pl-10 pr-4 text-sm text-brand-ink outline-none focus:border-brand-green focus:ring-1 focus:ring-brand-green"
           />
         </div>
+        <div className="relative shrink-0">
+          <ArrowUpDown
+            className="pointer-events-none absolute left-3.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-brand-ink/40"
+            aria-hidden="true"
+          />
+          <select
+            value={sortMode}
+            onChange={(e) => setSortMode(e.target.value as SortMode)}
+            aria-label="Ordenar baias por"
+            className="w-full appearance-none rounded-full border border-brand-sand bg-white py-2.5 pl-9 pr-8 text-sm text-brand-ink outline-none focus:border-brand-green focus:ring-1 focus:ring-brand-green sm:w-auto"
+          >
+            {SORT_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+          <ChevronDown
+            className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-brand-ink/40"
+            aria-hidden="true"
+          />
+        </div>
         <Button onClick={() => setNovaOpen(true)}>
           <Plus className="h-4 w-4" aria-hidden="true" />
           Nova baia
@@ -132,13 +188,13 @@ export function BaiasManager({
         <p className="mt-6 rounded-2xl border border-dashed border-brand-sand bg-white p-10 text-center text-sm text-brand-ink/60">
           Nenhuma baia cadastrada ainda.
         </p>
-      ) : filteredBaias.length === 0 ? (
+      ) : sortedBaias.length === 0 ? (
         <p className="mt-6 rounded-2xl border border-dashed border-brand-sand bg-white p-10 text-center text-sm text-brand-ink/60">
           Nenhuma baia encontrada pra essa busca.
         </p>
       ) : (
         <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {filteredBaias.map((baia) => (
+          {sortedBaias.map((baia) => (
             <div key={baia.id} className="rounded-2xl border border-brand-sand/70 bg-white p-4">
               <div className="flex items-start justify-between gap-2">
                 <div className="flex min-w-0 items-center gap-2.5">
@@ -251,6 +307,11 @@ export function BaiasManager({
           title={`Editar ${editing.nome}`}
           baia={editing}
           action={updateBaia.bind(null, editing.id)}
+          onViewAves={() => {
+            const alvo = editing;
+            setEditing(null);
+            setAvesFor(alvo);
+          }}
         />
       )}
 
@@ -478,12 +539,17 @@ function BaiaFormSheet({
   title,
   baia,
   action,
+  onViewAves,
 }: {
   open: boolean;
   onClose: () => void;
   title: string;
   baia?: Baia;
   action: (state: FormState, formData: FormData) => Promise<FormState>;
+  /** Só existe editando uma baia que já existe — leva pra "Ver aves" (fecha
+   * esse painel e abre o outro), pra dar baixa ou excluir uma ave específica
+   * quando a quantidade precisa diminuir. */
+  onViewAves?: () => void;
 }) {
   const [state, formAction, pending] = useActionState(action, initialState);
   const formRef = useRef<HTMLFormElement>(null);
@@ -619,9 +685,8 @@ function BaiaFormSheet({
           />
         </div>
 
-        {/* Só faz sentido numa baia NOVA — numa já existente, as aves são
-            adicionadas pelo botão "+ Adicionar aves" dentro de "Ver aves"
-            (ver BaiaAvesSheet, mais abaixo), que usa a mesma lógica. */}
+        {/* Baia NOVA: dá pra já cadastrar o lote de aves junto, como parte
+            desse mesmo formulário/ação (createBaia). */}
         {!baia && (
           <div className="rounded-xl border border-dashed border-brand-sand p-3">
             <p className="text-sm font-medium text-brand-ink">Já cadastrar aves nessa baia (opcional)</p>
@@ -680,7 +745,143 @@ function BaiaFormSheet({
           </p>
         )}
       </form>
+
+      {/* Baia EXISTENTE: a quantidade de aves não é um campo do formulário
+          acima (não dá pra "setar um número" sem saber quais aves especificas
+          entram ou saem) — aqui dá pra aumentar na hora (mesma lógica do
+          cadastro em lote) e, pra diminuir, manda pra "Ver aves" (baixa ou
+          exclusão de uma ave específica, ver BaiaAvesSheet). */}
+      {baia && (
+        <div className="mt-4 rounded-xl border border-dashed border-brand-sand p-3">
+          <p className="text-sm font-medium text-brand-ink">Aves nessa baia</p>
+          <p className="mt-1 text-xs text-brand-ink/50">
+            {baia.totalAves === 0
+              ? "Nenhuma ave vinculada ainda."
+              : `${baia.totalAves} ave${baia.totalAves === 1 ? "" : "s"} agora · ${baia.machos} macho${baia.machos === 1 ? "" : "s"}, ${baia.femeas} fêmea${baia.femeas === 1 ? "" : "s"}.`}
+          </p>
+
+          <AvesQuickAddFields baiaId={baia.id} especie={baia.especie} />
+
+          <button
+            type="button"
+            onClick={onViewAves}
+            className="mt-3 text-sm font-medium text-brand-green hover:underline"
+          >
+            Ver cada ave (pra dar baixa ou excluir e diminuir a quantidade) →
+          </button>
+        </div>
+      )}
     </Sheet>
+  );
+}
+
+/** Formulariozinho de "machos + fêmeas + status inicial" pra cadastrar um
+ * lote de aves de uma vez, já vinculadas a uma baia — usado tanto dentro do
+ * formulário de edição de baia (acima) quanto dentro de "Ver aves"
+ * (BaiaAvesSheet, mais abaixo). Sempre a mesma lógica por baixo
+ * (createAvesLote), só muda onde aparece na tela. */
+function AvesQuickAddFields({
+  baiaId,
+  especie,
+  idPrefix = "qa",
+}: {
+  baiaId: string;
+  especie: string;
+  idPrefix?: string;
+}) {
+  const [machos, setMachos] = useState("0");
+  const [femeas, setFemeas] = useState("0");
+  const [status, setStatus] = useState<AveStatus>("Disponível");
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  function handleAdd() {
+    setError(null);
+    setSuccess(null);
+    const qtdMachos = Math.max(0, Math.trunc(Number(machos) || 0));
+    const qtdFemeas = Math.max(0, Math.trunc(Number(femeas) || 0));
+    startTransition(async () => {
+      const result = await createAvesLote(baiaId, especie, qtdMachos, qtdFemeas, status);
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+      setSuccess(
+        `${result.criadas} ave${result.criadas === 1 ? "" : "s"} adicionada${result.criadas === 1 ? "" : "s"}.`,
+      );
+      setMachos("0");
+      setFemeas("0");
+    });
+  }
+
+  return (
+    <div className="mt-3">
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label htmlFor={`${idPrefix}-machos`} className="block text-sm font-medium text-brand-ink">
+            Machos a adicionar
+          </label>
+          <input
+            id={`${idPrefix}-machos`}
+            type="number"
+            min={0}
+            value={machos}
+            onChange={(e) => setMachos(e.target.value)}
+            className={inputClass}
+          />
+        </div>
+        <div>
+          <label htmlFor={`${idPrefix}-femeas`} className="block text-sm font-medium text-brand-ink">
+            Fêmeas a adicionar
+          </label>
+          <input
+            id={`${idPrefix}-femeas`}
+            type="number"
+            min={0}
+            value={femeas}
+            onChange={(e) => setFemeas(e.target.value)}
+            className={inputClass}
+          />
+        </div>
+      </div>
+      <div className="mt-3">
+        <label htmlFor={`${idPrefix}-status`} className="block text-sm font-medium text-brand-ink">
+          Status inicial
+        </label>
+        <select
+          id={`${idPrefix}-status`}
+          value={status}
+          onChange={(e) => setStatus(e.target.value as AveStatus)}
+          className={inputClass}
+        >
+          <option value="Disponível">Disponível (já conta pra venda em Produtos)</option>
+          <option value="Reprodutor">Reprodutor</option>
+          <option value="Macho reprodutor">Macho reprodutor</option>
+          <option value="Fêmea reprodutora">Fêmea reprodutora</option>
+          <option value="Matriz">Matriz</option>
+          <option value="Filhote">Filhote</option>
+        </select>
+      </div>
+      <p className="mt-2 text-xs text-brand-ink/50">
+        Nasce com o nome &quot;{especie}&quot; — edite nome, anilha etc. depois, uma por uma, no
+        Plantel.
+      </p>
+      <button
+        type="button"
+        disabled={isPending}
+        onClick={handleAdd}
+        className="mt-3 w-full rounded-full bg-brand-green px-4 py-2 text-sm font-medium text-brand-cream hover:bg-brand-green-dark disabled:opacity-60"
+      >
+        {isPending ? "Adicionando..." : "Adicionar aves"}
+      </button>
+      {error && (
+        <p role="alert" className="mt-2 text-sm text-red-600">
+          {error}
+        </p>
+      )}
+      {success && <p className="mt-2 text-sm text-brand-green">{success}</p>}
+    </div>
   );
 }
 
@@ -920,30 +1121,21 @@ const AVE_STATUS_TONE: Record<AveStatus, BadgeTone> = {
  * com aves já dentro (ver BaiaFormSheet, acima). */
 function BaiaAvesSheet({ baia, aves, onClose }: { baia: Baia; aves: Ave[]; onClose: () => void }) {
   const [addOpen, setAddOpen] = useState(false);
-  const [machos, setMachos] = useState("0");
-  const [femeas, setFemeas] = useState("0");
-  const [status, setStatus] = useState<AveStatus>("Disponível");
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
+  const [removingId, setRemovingId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  function handleAdd() {
-    setError(null);
-    setSuccess(null);
-    const qtdMachos = Math.max(0, Math.trunc(Number(machos) || 0));
-    const qtdFemeas = Math.max(0, Math.trunc(Number(femeas) || 0));
+  function handleRemove(ave: Ave) {
+    if (
+      !window.confirm(
+        `Excluir "${ave.nome}" (${ave.codigo}) do Plantel? Essa ação não pode ser desfeita. Se ela já foi vendida ou morreu, prefira "Dar baixa" em vez de excluir, pra manter o histórico.`,
+      )
+    ) {
+      return;
+    }
+    setRemovingId(ave.id);
     startTransition(async () => {
-      const result = await createAvesLote(baia.id, baia.especie, qtdMachos, qtdFemeas, status);
-      if (result.error) {
-        setError(result.error);
-        return;
-      }
-      setSuccess(
-        `${result.criadas} ave${result.criadas === 1 ? "" : "s"} adicionada${result.criadas === 1 ? "" : "s"}.`,
-      );
-      setMachos("0");
-      setFemeas("0");
-      setAddOpen(false);
+      await deleteAve(ave.id);
+      setRemovingId(null);
     });
   }
 
@@ -966,73 +1158,9 @@ function BaiaAvesSheet({ baia, aves, onClose }: { baia: Baia; aves: Ave[]; onClo
 
       {addOpen && (
         <div className="mt-3 rounded-xl border border-brand-sand p-3">
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label htmlFor="add-aves-machos" className="block text-sm font-medium text-brand-ink">
-                Machos
-              </label>
-              <input
-                id="add-aves-machos"
-                type="number"
-                min={0}
-                value={machos}
-                onChange={(e) => setMachos(e.target.value)}
-                className={inputClass}
-              />
-            </div>
-            <div>
-              <label htmlFor="add-aves-femeas" className="block text-sm font-medium text-brand-ink">
-                Fêmeas
-              </label>
-              <input
-                id="add-aves-femeas"
-                type="number"
-                min={0}
-                value={femeas}
-                onChange={(e) => setFemeas(e.target.value)}
-                className={inputClass}
-              />
-            </div>
-          </div>
-          <div className="mt-3">
-            <label htmlFor="add-aves-status" className="block text-sm font-medium text-brand-ink">
-              Status inicial
-            </label>
-            <select
-              id="add-aves-status"
-              value={status}
-              onChange={(e) => setStatus(e.target.value as AveStatus)}
-              className={inputClass}
-            >
-              <option value="Disponível">Disponível (já conta pra venda em Produtos)</option>
-              <option value="Reprodutor">Reprodutor</option>
-              <option value="Macho reprodutor">Macho reprodutor</option>
-              <option value="Fêmea reprodutora">Fêmea reprodutora</option>
-              <option value="Matriz">Matriz</option>
-              <option value="Filhote">Filhote</option>
-            </select>
-          </div>
-          <p className="mt-2 text-xs text-brand-ink/50">
-            Nasce com o nome &quot;{baia.especie}&quot; — edite nome, anilha etc. depois, uma por
-            uma, no Plantel.
-          </p>
-          <button
-            type="button"
-            disabled={isPending}
-            onClick={handleAdd}
-            className="mt-3 w-full rounded-full bg-brand-green px-4 py-2 text-sm font-medium text-brand-cream hover:bg-brand-green-dark disabled:opacity-60"
-          >
-            {isPending ? "Adicionando..." : "Adicionar"}
-          </button>
+          <AvesQuickAddFields baiaId={baia.id} especie={baia.especie} idPrefix="add-aves" />
         </div>
       )}
-
-      {error && (
-        <p role="alert" className="mt-3 text-sm text-red-600">
-          {error}
-        </p>
-      )}
-      {success && <p className="mt-3 text-sm text-brand-green">{success}</p>}
 
       {aves.length > 0 && (
         <ul className="mt-4 divide-y divide-brand-sand/60">
@@ -1048,6 +1176,20 @@ function BaiaAvesSheet({ baia, aves, onClose }: { baia: Baia; aves: Ave[]; onClo
               <div className="flex shrink-0 items-center gap-1.5">
                 <Badge tone="neutral">{ave.sexo}</Badge>
                 <Badge tone={AVE_STATUS_TONE[ave.status]}>{ave.status}</Badge>
+                <button
+                  type="button"
+                  disabled={isPending && removingId === ave.id}
+                  onClick={() => handleRemove(ave)}
+                  aria-label={`Excluir ${ave.nome}`}
+                  title="Excluir do Plantel (diminui a quantidade)"
+                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-brand-ink/40 hover:bg-red-50 hover:text-red-600 disabled:opacity-60"
+                >
+                  {isPending && removingId === ave.id ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                  ) : (
+                    <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                  )}
+                </button>
               </div>
             </li>
           ))}
@@ -1063,28 +1205,6 @@ function BaiaAvesSheet({ baia, aves, onClose }: { baia: Baia; aves: Ave[]; onClo
       </Link>
     </Sheet>
   );
-}
-
-/** Soma a quantidade postada por dia (todos os destinos juntos) nos últimos
- * `dias`, preenchendo com zero os dias sem coleta — assim o gráfico sempre
- * mostra o período inteiro, não só os dias com lançamento. */
-function buildDailySeries(lotes: LotePostura[], dias: number): PosturaSeriesPoint[] {
-  const totals = new Map<string, number>();
-  for (const lote of lotes) {
-    totals.set(lote.dataPostura, (totals.get(lote.dataPostura) ?? 0) + lote.quantidade);
-  }
-
-  const hoje = new Date();
-  hoje.setHours(0, 0, 0, 0);
-
-  const serie: PosturaSeriesPoint[] = [];
-  for (let i = dias - 1; i >= 0; i--) {
-    const d = new Date(hoje);
-    d.setDate(d.getDate() - i);
-    const key = d.toISOString().split("T")[0];
-    serie.push({ data: key, quantidade: totals.get(key) ?? 0 });
-  }
-  return serie;
 }
 
 /** Gráfico de postura por data, só dessa baia — pra visualizar rápido o

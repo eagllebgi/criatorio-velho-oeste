@@ -10,8 +10,15 @@ import {
   Clock,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { getFinanceiroMesAdmin, getFrescorConfigAdmin, getLotesProximoPrazoAdmin } from "@/lib/data/admin";
+import {
+  getAllBaiasAdmin,
+  getAllLotesPosturaAdmin,
+  getFinanceiroMesAdmin,
+  getFrescorConfigAdmin,
+  getLotesProximoPrazoAdmin,
+} from "@/lib/data/admin";
 import { formatBRL } from "@/lib/utils";
+import { DashboardPosturaChart } from "@/components/admin/DashboardPosturaChart";
 
 export const dynamic = "force-dynamic";
 
@@ -39,10 +46,12 @@ async function getDashboardStats() {
 }
 
 export default async function AdminDashboardPage() {
-  const [stats, financeiroMes, frescorConfig] = await Promise.all([
+  const [stats, financeiroMes, frescorConfig, baias, lotesPostura] = await Promise.all([
     getDashboardStats(),
     getFinanceiroMesAdmin(),
     getFrescorConfigAdmin(),
+    getAllBaiasAdmin(),
+    getAllLotesPosturaAdmin(),
   ]);
   const lotesProximoPrazo = await getLotesProximoPrazoAdmin(frescorConfig);
 
@@ -171,6 +180,11 @@ export default async function AdminDashboardPage() {
           </div>
         ))}
       </div>
+
+      <DashboardPosturaChart
+        lotes={lotesPostura}
+        baias={baias.map((b) => ({ id: b.id, nome: b.nome }))}
+      />
 
       <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Link

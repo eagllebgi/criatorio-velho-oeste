@@ -1,10 +1,71 @@
 "use client";
 
 import { useState } from "react";
-import { QrCode, Download, Printer } from "lucide-react";
+import { QrCode, Download, Printer, Loader2 } from "lucide-react";
 import { Sheet } from "@/components/ui/Sheet";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
+
+/** Carrega o PNG do QR (data URI) como um <img> em memória, pra poder
+ * desenhar ele dentro do canvas — precisa esperar o "load" porque a imagem
+ * só fica disponível pro canvas depois de decodificada. */
+function loadImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new window.Image();
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = src;
+  });
+}
+
+/** Monta uma única imagem PNG com o QR Code + nome/espécie/código escritos
+ * embaixo, pra quando a pessoa baixar um QR avulso (sem passar pela tela
+ * "Imprimir todos") ainda dar pra reconhecer de qual baia é antes mesmo de
+ * escanear — útil na hora de imprimir e colar cada um na baia certa. Tudo
+ * feito no navegador com canvas, sem depender de nada no servidor. */
+async function buildQrDownloadImage({
+  dataUrl,
+  nome,
+  especie,
+  codigo,
+}: {
+  dataUrl: string;
+  nome: string;
+  especie: string;
+  codigo: string;
+}): Promise<string> {
+  const img = await loadImage(dataUrl);
+  const qrSize = 240;
+  const margin = 24;
+  const width = qrSize + margin * 2;
+  const textTop = margin + qrSize + 18;
+  const height = textTop + 46 + margin;
+
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return dataUrl;
+
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, width, height);
+
+  // QR em si: sem suavização, pra manter os quadradinhos nítidos (importante
+  // pra continuar lendo bem depois de impresso).
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(img, margin, margin, qrSize, qrSize);
+
+  ctx.textAlign = "center";
+  ctx.fillStyle = "#221b15";
+  ctx.font = "600 18px system-ui, sans-serif";
+  ctx.fillText(nome, width / 2, textTop + 18, width - margin);
+
+  ctx.fillStyle = "rgba(34, 27, 21, 0.6)";
+  ctx.font = "400 13px system-ui, sans-serif";
+  ctx.fillText(`${especie} · ${codigo}`, width / 2, textTop + 38, width - margin);
+
+  return canvas.toDataURL("image/png");
+}
 
 /**
  * QR Code de coleta de ovos, num cantinho do card da baia — clica e abre o
@@ -31,6 +92,27 @@ export function BaiaQrCode({
   className?: string;
 }) {
   const [open, setOpen] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+
+  async function handleDownload() {
+    setDownloading(true);
+    try {
+      const composedUrl = await buildQrDownloadImage({ dataUrl, nome, especie, codigo });
+      const a = document.createElement("a");
+      a.href = composedUrl;
+      a.download = `qr-${codigo.toLowerCase()}.png`;
+      a.click();
+    } catch {
+      // Se por algum motivo o canvas falhar (ex: navegador muito antigo),
+      // ainda baixa o QR puro — melhor que não baixar nada.
+      const a = document.createElement("a");
+      a.href = dataUrl;
+      a.download = `qr-${codigo.toLowerCase()}.png`;
+      a.click();
+    } finally {
+      setDownloading(false);
+    }
+  }
 
   return (
     <>
@@ -68,19 +150,28 @@ export function BaiaQrCode({
           </div>
 
           <div className="flex w-full gap-2">
-            <a
-              href={dataUrl}
-              download={`qr-${codigo.toLowerCase()}.png`}
-              className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-full border border-brand-sand px-4 py-2.5 text-sm font-medium text-brand-ink/70 hover:border-brand-green hover:text-brand-green"
+            <button
+              type="button"
+              disabled={downloading}
+              onClick={handleDownload}
+              className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-full border border-brand-sand px-4 py-2.5 text-sm font-medium text-brand-ink/70 hover:border-brand-green hover:text-brand-green disabled:opacity-60"
             >
-              <Download className="h-4 w-4" aria-hidden="true" />
+              {downloading ? (
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+              ) : (
+                <Download className="h-4 w-4" aria-hidden="true" />
+              )}
               Baixar
-            </a>
+            </button>
             <Button href="/admin/baias/qrcodes" variant="outline" className="flex-1">
               <Printer className="h-4 w-4" aria-hidden="true" />
               Imprimir todos
             </Button>
           </div>
+          <p className="text-xs text-brand-ink/40">
+            O arquivo baixado já vem com o nome da baia escrito embaixo do QR — dá pra reconhecer
+            qual é qual antes mesmo de escanear.
+          </p>
         </div>
       </Sheet>
     </>
