@@ -143,6 +143,56 @@ export async function darBaixaPorAnilha(
   return { error: null, aveNome: ave.nome };
 }
 
+// ── Cadastro em lote (vários machos/fêmeas de uma vez) ──────────────────
+
+export interface LoteAveResult extends FormState {
+  criadas?: number;
+}
+
+/** Cadastra várias aves de uma vez (machos + fêmeas), já vinculadas a uma
+ * baia — usado pelo botão "+ Adicionar aves" dentro de "Ver aves" (em
+ * /admin/baias), pra não precisar ir uma por uma. Cada ave nasce com o
+ * nome da espécie (editável depois) e um código sequencial próprio, mesmo
+ * padrão do nascimento automático (registrarNascimento, em
+ * postura/actions.ts) e do lote cadastrado junto com uma baia nova
+ * (createBaia, em baias/actions.ts). */
+export async function createAvesLote(
+  baiaId: string,
+  especie: string,
+  machos: number,
+  femeas: number,
+  status: AveStatus,
+): Promise<LoteAveResult> {
+  const totalMachos = Math.max(0, Math.trunc(machos));
+  const totalFemeas = Math.max(0, Math.trunc(femeas));
+  const total = totalMachos + totalFemeas;
+
+  if (!baiaId) return { error: "Baia inválida." };
+  if (total <= 0) return { error: "Informe ao menos 1 ave (macho ou fêmea)." };
+
+  const supabase = await createClient();
+  const emoji = emojiForEspecie(especie);
+  const prefixo = Date.now().toString(36).toUpperCase();
+  const itens = [
+    ...Array.from({ length: totalMachos }, (_, i) => ({ sexo: "Macho" as const, i })),
+    ...Array.from({ length: totalFemeas }, (_, i) => ({ sexo: "Fêmea" as const, i: totalMachos + i })),
+  ];
+  const novasAves = itens.map(({ sexo, i }) => ({
+    codigo: `AVE-${prefixo}-${i}`,
+    baia_id: baiaId,
+    nome: especie,
+    emoji,
+    sexo,
+    status,
+  }));
+
+  const { error } = await supabase.from("aves").insert(novasAves);
+  if (error) return { error: error.message };
+
+  revalidateAvesPaths();
+  return { error: null, criadas: total };
+}
+
 // Upload de foto (ave/baia) acontece direto no navegador — Storage + update
 // da coluna via cliente Supabase do browser, mesmo padrão do PhotoCell de
 // Produtos (ver AdminProductTable.tsx) — não precisa de server action.

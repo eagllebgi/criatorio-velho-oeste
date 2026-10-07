@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { nextCodigo } from "@/lib/actions/codigo";
 import { parsePriceInput } from "@/lib/utils";
+import { emojiForEspecie, type AveStatus } from "@/lib/types/domain";
 
 export interface FormState {
   error: string | null;
@@ -46,27 +47,82 @@ function parseBaiaForm(formData: FormData) {
   return { numero, especie, nome, setor, status, precoOvo, destinoPadrao, observacoes };
 }
 
+/** Monta as linhas de `aves` pra um lote de machos + fêmeas de uma vez — já
+ * vinculadas à baia, com o nome da espécie (editável depois, igual a
+ * qualquer ave) e código sequencial próprio, mesmo padrão usado no
+ * nascimento automático (ver registrarNascimento em postura/actions.ts).
+ * Pensado pra aves "prontas" (reprodutoras, disponíveis etc.) sendo
+ * cadastradas em lote — não pra filhotes recém-nascidos, que continuam
+ * sendo criados um a um por lá. */
+function montarNovasAves(
+  especie: string,
+  baiaId: string,
+  machos: number,
+  femeas: number,
+  status: AveStatus,
+) {
+  const emoji = emojiForEspecie(especie);
+  const prefixo = Date.now().toString(36).toUpperCase();
+  const itens = [
+    ...Array.from({ length: machos }, (_, i) => ({ sexo: "Macho" as const, i })),
+    ...Array.from({ length: femeas }, (_, i) => ({ sexo: "Fêmea" as const, i: machos + i })),
+  ];
+  return itens.map(({ sexo, i }) => ({
+    codigo: `AVE-${prefixo}-${i}`,
+    baia_id: baiaId,
+    nome: especie,
+    emoji,
+    sexo,
+    status,
+  }));
+}
+
+/** Cria a baia e, opcionalmente, já cadastra um lote de aves dentro dela de
+ * uma vez (machos + fêmeas) — pra não ter que criar a baia e depois ir uma
+ * por uma no Plantel. Os campos "aves_machos"/"aves_femeas"/"aves_status"
+ * só existem no formulário de baia NOVA (ver BaiaFormSheet); editar uma
+ * baia existente nunca mexe nas aves dela por aqui — isso é feito pelo
+ * botão "+ Adicionar aves" dentro de "Ver aves" (ver aves/actions.ts). */
 export async function createBaia(_prevState: FormState, formData: FormData): Promise<FormState> {
   const values = parseBaiaForm(formData);
   if (!values.numero) return { error: "Informe o número da baia." };
   if (!values.especie) return { error: "Informe a espécie." };
 
+  const avesMachos = Math.max(0, Math.trunc(Number(formData.get("aves_machos")) || 0));
+  const avesFemeas = Math.max(0, Math.trunc(Number(formData.get("aves_femeas")) || 0));
+  const avesStatus = (String(formData.get("aves_status") ?? "Disponível") || "Disponível") as AveStatus;
+
   const supabase = await createClient();
   const codigo = await nextCodigo(supabase, "baias", "B", 3);
 
-  const { error } = await supabase.from("baias").insert({
-    codigo,
-    numero: values.numero,
-    nome: values.nome,
-    especie: values.especie,
-    setor: values.setor,
-    status: values.status as "Reprodução" | "Ativa" | "Inativa",
-    preco_ovo: values.precoOvo,
-    destino_padrao: values.destinoPadrao as "venda" | "choc" | "reservado" | "descarte",
-    observacoes: values.observacoes,
-  });
+  const { data: baia, error } = await supabase
+    .from("baias")
+    .insert({
+      codigo,
+      numero: values.numero,
+      nome: values.nome,
+      especie: values.especie,
+      setor: values.setor,
+      status: values.status as "Reprodução" | "Ativa" | "Inativa",
+      preco_ovo: values.precoOvo,
+      destino_padrao: values.destinoPadrao as "venda" | "choc" | "reservado" | "descarte",
+      observacoes: values.observacoes,
+    })
+    .select("id")
+    .single();
 
   if (error) return { error: error.message };
+
+  if (avesMachos + avesFemeas > 0 && baia) {
+    const novasAves = montarNovasAves(values.especie, baia.id, avesMachos, avesFemeas, avesStatus);
+    const { error: avesError } = await supabase.from("aves").insert(novasAves);
+    if (avesError) {
+      return {
+        error: `A baia foi criada, mas não deu pra cadastrar as aves: ${avesError.message}. Adicione elas depois em "Ver aves".`,
+      };
+    }
+  }
+
   revalidateGestaoPaths();
   return { error: null };
 }

@@ -36,6 +36,7 @@ import {
   updateBaiaStatusQuick,
   type FormState,
 } from "@/app/(admin)/admin/(protected)/baias/actions";
+import { createAvesLote } from "@/app/(admin)/admin/(protected)/aves/actions";
 
 const BUCKET = "product-images";
 
@@ -618,6 +619,61 @@ function BaiaFormSheet({
           />
         </div>
 
+        {/* Só faz sentido numa baia NOVA — numa já existente, as aves são
+            adicionadas pelo botão "+ Adicionar aves" dentro de "Ver aves"
+            (ver BaiaAvesSheet, mais abaixo), que usa a mesma lógica. */}
+        {!baia && (
+          <div className="rounded-xl border border-dashed border-brand-sand p-3">
+            <p className="text-sm font-medium text-brand-ink">Já cadastrar aves nessa baia (opcional)</p>
+            <p className="mt-1 text-xs text-brand-ink/50">
+              Cria as aves já vinculadas a essa baia, com o nome da espécie acima — dá pra editar
+              nome, anilha etc. depois, uma por uma, no Plantel. Deixe em 0 pra cadastrar as aves
+              depois, com calma.
+            </p>
+            <div className="mt-3 grid grid-cols-2 gap-3">
+              <div>
+                <label htmlFor="aves_machos" className="block text-sm font-medium text-brand-ink">
+                  Machos
+                </label>
+                <input
+                  id="aves_machos"
+                  name="aves_machos"
+                  type="number"
+                  min={0}
+                  defaultValue={0}
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label htmlFor="aves_femeas" className="block text-sm font-medium text-brand-ink">
+                  Fêmeas
+                </label>
+                <input
+                  id="aves_femeas"
+                  name="aves_femeas"
+                  type="number"
+                  min={0}
+                  defaultValue={0}
+                  className={inputClass}
+                />
+              </div>
+            </div>
+            <div className="mt-3">
+              <label htmlFor="aves_status" className="block text-sm font-medium text-brand-ink">
+                Status inicial dessas aves
+              </label>
+              <select id="aves_status" name="aves_status" defaultValue="Disponível" className={inputClass}>
+                <option value="Disponível">Disponível (já conta pra venda em Produtos)</option>
+                <option value="Reprodutor">Reprodutor</option>
+                <option value="Macho reprodutor">Macho reprodutor</option>
+                <option value="Fêmea reprodutora">Fêmea reprodutora</option>
+                <option value="Matriz">Matriz</option>
+                <option value="Filhote">Filhote</option>
+              </select>
+            </div>
+          </div>
+        )}
+
         {state.error && (
           <p role="alert" className="text-sm text-red-600">
             {state.error}
@@ -858,8 +914,39 @@ const AVE_STATUS_TONE: Record<AveStatus, BadgeTone> = {
 /** Mostra quem está vinculado a essa baia agora (nome, anilha, status) sem
  * precisar ir até o Plantel e filtrar/buscar por lá — essa lista é a mesma
  * usada pra calcular a contagem do card (aves "Vendido"/"Óbito" já não
- * aparecem aqui nem lá, a baixa propaga pros dois lugares igual). */
+ * aparecem aqui nem lá, a baixa propaga pros dois lugares igual). Também
+ * tem o atalho "Adicionar aves", pra cadastrar mais um lote (machos/fêmeas)
+ * sem precisar ir até o Plantel — mesma lógica usada ao criar uma baia nova
+ * com aves já dentro (ver BaiaFormSheet, acima). */
 function BaiaAvesSheet({ baia, aves, onClose }: { baia: Baia; aves: Ave[]; onClose: () => void }) {
+  const [addOpen, setAddOpen] = useState(false);
+  const [machos, setMachos] = useState("0");
+  const [femeas, setFemeas] = useState("0");
+  const [status, setStatus] = useState<AveStatus>("Disponível");
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  function handleAdd() {
+    setError(null);
+    setSuccess(null);
+    const qtdMachos = Math.max(0, Math.trunc(Number(machos) || 0));
+    const qtdFemeas = Math.max(0, Math.trunc(Number(femeas) || 0));
+    startTransition(async () => {
+      const result = await createAvesLote(baia.id, baia.especie, qtdMachos, qtdFemeas, status);
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+      setSuccess(
+        `${result.criadas} ave${result.criadas === 1 ? "" : "s"} adicionada${result.criadas === 1 ? "" : "s"}.`,
+      );
+      setMachos("0");
+      setFemeas("0");
+      setAddOpen(false);
+    });
+  }
+
   return (
     <Sheet open onClose={onClose} title={`Aves — ${baia.nome}`}>
       <p className="text-sm text-brand-ink/60">
@@ -867,6 +954,85 @@ function BaiaAvesSheet({ baia, aves, onClose }: { baia: Baia; aves: Ave[]; onClo
           ? "Nenhuma ave vinculada a essa baia ainda."
           : `${aves.length} ave${aves.length === 1 ? "" : "s"} vinculada${aves.length === 1 ? "" : "s"} — sempre em dia com o Plantel, em tempo real.`}
       </p>
+
+      <button
+        type="button"
+        onClick={() => setAddOpen((v) => !v)}
+        className="mt-3 flex items-center gap-1.5 text-sm font-medium text-brand-green hover:underline"
+      >
+        <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+        Adicionar aves
+      </button>
+
+      {addOpen && (
+        <div className="mt-3 rounded-xl border border-brand-sand p-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label htmlFor="add-aves-machos" className="block text-sm font-medium text-brand-ink">
+                Machos
+              </label>
+              <input
+                id="add-aves-machos"
+                type="number"
+                min={0}
+                value={machos}
+                onChange={(e) => setMachos(e.target.value)}
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label htmlFor="add-aves-femeas" className="block text-sm font-medium text-brand-ink">
+                Fêmeas
+              </label>
+              <input
+                id="add-aves-femeas"
+                type="number"
+                min={0}
+                value={femeas}
+                onChange={(e) => setFemeas(e.target.value)}
+                className={inputClass}
+              />
+            </div>
+          </div>
+          <div className="mt-3">
+            <label htmlFor="add-aves-status" className="block text-sm font-medium text-brand-ink">
+              Status inicial
+            </label>
+            <select
+              id="add-aves-status"
+              value={status}
+              onChange={(e) => setStatus(e.target.value as AveStatus)}
+              className={inputClass}
+            >
+              <option value="Disponível">Disponível (já conta pra venda em Produtos)</option>
+              <option value="Reprodutor">Reprodutor</option>
+              <option value="Macho reprodutor">Macho reprodutor</option>
+              <option value="Fêmea reprodutora">Fêmea reprodutora</option>
+              <option value="Matriz">Matriz</option>
+              <option value="Filhote">Filhote</option>
+            </select>
+          </div>
+          <p className="mt-2 text-xs text-brand-ink/50">
+            Nasce com o nome &quot;{baia.especie}&quot; — edite nome, anilha etc. depois, uma por
+            uma, no Plantel.
+          </p>
+          <button
+            type="button"
+            disabled={isPending}
+            onClick={handleAdd}
+            className="mt-3 w-full rounded-full bg-brand-green px-4 py-2 text-sm font-medium text-brand-cream hover:bg-brand-green-dark disabled:opacity-60"
+          >
+            {isPending ? "Adicionando..." : "Adicionar"}
+          </button>
+        </div>
+      )}
+
+      {error && (
+        <p role="alert" className="mt-3 text-sm text-red-600">
+          {error}
+        </p>
+      )}
+      {success && <p className="mt-3 text-sm text-brand-green">{success}</p>}
 
       {aves.length > 0 && (
         <ul className="mt-4 divide-y divide-brand-sand/60">
