@@ -11,7 +11,7 @@ import { createClient } from "@/lib/supabase/client";
 import { buildProductImagePath } from "@/lib/storage";
 import { ImageCropModal } from "@/components/admin/ImageCropModal";
 import { parsePriceInput, toPriceInputValue } from "@/lib/utils";
-import type { OvoFreshnessBuckets } from "@/lib/data/admin";
+import type { FrescorConfig, OvoFreshnessBuckets } from "@/lib/data/admin";
 import {
   deleteProduct,
   toggleProductActive,
@@ -26,9 +26,14 @@ type TipoFilter = "todos" | ProductType;
 export function AdminProductTable({
   products,
   freshness,
+  frescorConfig,
 }: {
   products: Product[];
   freshness: Record<string, OvoFreshnessBuckets>;
+  /** Prazos configurados em /admin/configuracoes — usados só pra rotular as
+   * colunas de frescor com os números certos (ex: "até 5 dias" vira "até 6
+   * dias" se o criador configurar 6). Ver 0011_frescor_configuravel.sql. */
+  frescorConfig: FrescorConfig;
 }) {
   const [isPending, startTransition] = useTransition();
   const [tipoFilter, setTipoFilter] = useState<TipoFilter>("todos");
@@ -146,12 +151,12 @@ export function AdminProductTable({
               <th className="px-4 py-3 font-medium">
                 Coletado
                 <br />
-                até 5 dias
+                até {frescorConfig.diasNacional} dias
               </th>
               <th className="px-4 py-3 font-medium">
                 Coletado
                 <br />
-                até 7 dias
+                até {frescorConfig.diasLocal} dias
               </th>
               <th className="px-4 py-3 font-medium">Status</th>
               <th className="px-4 py-3 font-medium">Destaque</th>
@@ -186,10 +191,10 @@ export function AdminProductTable({
                   />
                 </td>
                 <td className="px-4 py-3">
-                  <FreshnessCell product={product} freshness={freshness} bucket="ate5" />
+                  <FreshnessCell product={product} freshness={freshness} bucket="ate5" ufLocal={frescorConfig.ufLocal} />
                 </td>
                 <td className="px-4 py-3">
-                  <FreshnessCell product={product} freshness={freshness} bucket="ate7" />
+                  <FreshnessCell product={product} freshness={freshness} bucket="ate7" ufLocal={frescorConfig.ufLocal} />
                 </td>
                 <td className="px-4 py-3">
                   <button
@@ -291,10 +296,12 @@ export function AdminProductTable({
                 {product.productType === "ovo" && (
                   <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-brand-ink/60">
                     <span>
-                      Até 5 dias: <FreshnessCell product={product} freshness={freshness} bucket="ate5" />
+                      Até {frescorConfig.diasNacional} dias:{" "}
+                      <FreshnessCell product={product} freshness={freshness} bucket="ate5" ufLocal={frescorConfig.ufLocal} />
                     </span>
                     <span>
-                      Até 7 dias: <FreshnessCell product={product} freshness={freshness} bucket="ate7" />
+                      Até {frescorConfig.diasLocal} dias:{" "}
+                      <FreshnessCell product={product} freshness={freshness} bucket="ate7" ufLocal={frescorConfig.ufLocal} />
                     </span>
                   </div>
                 )}
@@ -392,16 +399,19 @@ function StockCell({
 
 /** Coluna informativa (não editável) mostrando quanto tem disponível pra
  * venda em cada janela de frescor — ver getOvoFreshnessBuckets em
- * lib/data/admin.ts e a regra em 0009_frescor_ovos_perfil.sql. Só faz
- * sentido pra Ovo (Ave não tem "coleta"); pra Ave mostra "—". */
+ * lib/data/admin.ts e a regra configurável em 0011_frescor_configuravel.sql
+ * (editável em /admin/configuracoes). Só faz sentido pra Ovo (Ave não tem
+ * "coleta"); pra Ave mostra "—". */
 function FreshnessCell({
   product,
   freshness,
   bucket,
+  ufLocal,
 }: {
   product: Product;
   freshness: Record<string, OvoFreshnessBuckets>;
   bucket: "ate5" | "ate7";
+  ufLocal: string;
 }) {
   if (product.productType !== "ovo") {
     return <span className="text-sm text-brand-ink/30">—</span>;
@@ -419,7 +429,7 @@ function FreshnessCell({
       title={
         bucket === "ate5"
           ? "Pode ser enviado pra todo o Brasil"
-          : "Só dá pra garantir envio dentro de São Paulo"
+          : `Só dá pra garantir envio dentro de ${ufLocal}`
       }
       className={cn(
         "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium",

@@ -10,7 +10,7 @@ import {
   Clock,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { getFinanceiroMesAdmin, getLotesProximoPrazoAdmin } from "@/lib/data/admin";
+import { getFinanceiroMesAdmin, getFrescorConfigAdmin, getLotesProximoPrazoAdmin } from "@/lib/data/admin";
 import { formatBRL } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -39,11 +39,12 @@ async function getDashboardStats() {
 }
 
 export default async function AdminDashboardPage() {
-  const [stats, financeiroMes, lotesProximoPrazo] = await Promise.all([
+  const [stats, financeiroMes, frescorConfig] = await Promise.all([
     getDashboardStats(),
     getFinanceiroMesAdmin(),
-    getLotesProximoPrazoAdmin(),
+    getFrescorConfigAdmin(),
   ]);
+  const lotesProximoPrazo = await getLotesProximoPrazoAdmin(frescorConfig);
 
   const vendasDoMes = financeiroMes
     .filter((f) => f.tipo === "entrada")
@@ -95,7 +96,12 @@ export default async function AdminDashboardPage() {
           </div>
           <p className="mt-1.5 text-sm text-amber-800/80">
             Esses lotes de ovos destinados à venda estão perto de sair da
-            janela de frescor (o envio só é garantido até 7 dias da coleta).
+            janela de frescor (o envio só é garantido até {frescorConfig.diasLocal}{" "}
+            dias da coleta — ajuste em{" "}
+            <Link href="/admin/configuracoes" className="underline underline-offset-2">
+              Configurações
+            </Link>
+            ).
           </p>
           <ul className="mt-3 space-y-1.5 text-sm text-amber-900">
             {lotesProximoPrazo.map((lote) => (

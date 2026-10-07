@@ -531,6 +531,11 @@ function AveFormSheet({
               <option value="Separado">Separado (observação)</option>
               <option value="Óbito">Óbito</option>
             </select>
+            <p className="mt-1.5 text-xs text-brand-ink/45">
+              &quot;Disponível&quot; é o que coloca a ave à venda: conta sozinha no estoque de Ave
+              do produto da mesma raça em Produtos. Pra vender, use &quot;Dar baixa&quot; — não
+              precisa trocar esse status na mão.
+            </p>
           </div>
         </div>
 

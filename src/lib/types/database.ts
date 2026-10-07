@@ -297,6 +297,27 @@ export interface Database {
           },
         ];
       };
+      // Tabela "singleton" (sempre uma linha só, id = true) com a regra de
+      // frescor de ovos configurável pelo admin — ver
+      // 0011_frescor_configuravel.sql.
+      configuracoes: {
+        Row: {
+          id: boolean;
+          dias_frescor_nacional: number;
+          dias_frescor_local: number;
+          uf_local: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: boolean;
+          dias_frescor_nacional?: number;
+          dias_frescor_local?: number;
+          uf_local?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["configuracoes"]["Insert"]>;
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: {
@@ -336,6 +357,14 @@ export interface Database {
         Args: { p_especie: string; p_delta: number };
         Returns: undefined;
       };
+      // SECURITY DEFINER, liberada pra "anon" — devolve só os 3 valores da
+      // regra de frescor configurável (tabela `configuracoes`), usada pelo
+      // carrinho do site público pra montar o aviso por CEP. Veja
+      // 0011_frescor_configuravel.sql.
+      get_frescor_config: {
+        Args: Record<string, never>;
+        Returns: { dias_frescor_nacional: number; dias_frescor_local: number; uf_local: string }[];
+      };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
@@ -353,3 +382,5 @@ export type BaiaObservacaoRow =
 export type AveRow = Database["public"]["Tables"]["aves"]["Row"];
 export type LotePosturaRow =
   Database["public"]["Tables"]["lotes_postura"]["Row"];
+export type ConfiguracoesRow =
+  Database["public"]["Tables"]["configuracoes"]["Row"];

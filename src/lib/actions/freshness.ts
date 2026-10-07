@@ -12,12 +12,15 @@ export interface FreshnessWarning {
 /**
  * Confere, pro CEP informado no carrinho, se os ovos têm coleta fresca o
  * bastante pra garantir o envio até o destino:
- *   - coletado há até 5 dias -> pode enviar pra qualquer estado do Brasil
- *   - coletado há 6 ou 7 dias -> só dá pra garantir dentro de São Paulo
- * Chama a função `ovo_freshness_buckets` (SECURITY DEFINER, liberada pra
- * "anon" — o carrinho do site roda sem ninguém logado; ver
- * 0009_frescor_ovos_perfil.sql), que soma o estoque disponível em cada
- * janela sem expor `lotes_postura`/`baias` diretamente.
+ *   - coletado há até "diasNacional" dias -> pode enviar pra qualquer
+ *     estado do Brasil
+ *   - coletado há mais que "diasNacional" e até "diasLocal" dias -> só dá
+ *     pra garantir dentro do estado configurado ("ufLocal")
+ * Os três números são configuráveis pelo admin (ver
+ * 0011_frescor_configuravel.sql, tela /admin/configuracoes) — lidos aqui
+ * via `get_frescor_config` (SECURITY DEFINER, liberada pra "anon", mesmo
+ * padrão de `ovo_freshness_buckets" abaixo, já que o carrinho do site roda
+ * sem ninguém logado).
  *
  * NUNCA bloqueia o pedido — é só um aviso não-obrigatório (decisão do
  * Gabriel): o cliente sempre consegue continuar pelo WhatsApp mesmo que
@@ -35,6 +38,10 @@ export async function checkFreshnessForCep(
   if (ovos.length === 0) return [];
 
   const supabase = await createClient();
+
+  const { data: config } = await supabase.rpc("get_frescor_config").maybeSingle();
+  const ufLocal = config?.uf_local ?? "SP";
+
   const warnings: FreshnessWarning[] = [];
 
   for (const item of ovos) {
@@ -46,7 +53,7 @@ export async function checkFreshnessForCep(
 
     const qtdAte5 = data.qtd_ate_5 ?? 0;
     const qtdAte7 = data.qtd_ate_7 ?? 0;
-    const elegivel = uf === "SP" ? qtdAte5 + qtdAte7 > 0 : qtdAte5 > 0;
+    const elegivel = uf === ufLocal ? qtdAte5 + qtdAte7 > 0 : qtdAte5 > 0;
 
     if (elegivel) continue;
 
@@ -54,9 +61,9 @@ export async function checkFreshnessForCep(
       productId: item.productId,
       name: item.name,
       message:
-        uf === "SP"
+        uf === ufLocal
           ? `${item.name}: sem coleta recente o suficiente no momento — o atendimento confirma a disponibilidade.`
-          : `${item.name}: a coleta atual só está garantida pra envio dentro de São Paulo. Pra fora de SP, o atendimento confirma a disponibilidade.`,
+          : `${item.name}: a coleta atual só está garantida pra envio dentro de ${ufLocal}. Pra fora de ${ufLocal}, o atendimento confirma a disponibilidade.`,
     });
   }
 

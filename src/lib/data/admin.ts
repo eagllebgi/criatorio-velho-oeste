@@ -218,12 +218,52 @@ export async function getAllLotesPosturaAdmin(): Promise<LotePostura[]> {
   return (data ?? []).map(mapLotePostura);
 }
 
+// ── Gestão interna: configuração geral (regra de frescor) ───────────────
+// Tabela "singleton" (uma linha só) — ver 0011_frescor_configuravel.sql.
+// Antes disso (0009_frescor_ovos_perfil.sql) os números eram fixos em
+// 5/7 dias e o estado "local" era sempre SP; agora cada criador define o
+// próprio prazo em /admin/configuracoes.
+
+export interface FrescorConfig {
+  diasNacional: number;
+  diasLocal: number;
+  ufLocal: string;
+}
+
+const FRESCOR_CONFIG_PADRAO: FrescorConfig = { diasNacional: 5, diasLocal: 7, ufLocal: "SP" };
+
+/** Lê a configuração de frescor direto da tabela (contexto admin, já
+ * autenticado) — usada pelas telas internas (Produtos, Dashboard,
+ * Configurações). O carrinho público usa a função `get_frescor_config`
+ * (RPC, liberada pra "anon") em vez desta. */
+export async function getFrescorConfigAdmin(): Promise<FrescorConfig> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("configuracoes")
+    .select("dias_frescor_nacional, dias_frescor_local, uf_local")
+    .maybeSingle();
+
+  if (error || !data) {
+    if (error) console.error("getFrescorConfigAdmin error:", error.message);
+    return FRESCOR_CONFIG_PADRAO;
+  }
+
+  return {
+    diasNacional: data.dias_frescor_nacional,
+    diasLocal: data.dias_frescor_local,
+    ufLocal: data.uf_local,
+  };
+}
+
 // ── Gestão interna: frescor de ovos (envio) ──────────────────────────────
-// Regra combinada com o Gabriel (ver 0009_frescor_ovos_perfil.sql):
-//   - coletado há até 5 dias -> pode enviar pra qualquer estado do Brasil
-//   - coletado há 6 ou 7 dias -> só dá pra garantir envio dentro de SP
-//   - depois de 7 dias, o lote sai dessa conta (não conta mais como
-//     "fresco o bastante" pra envio, mesmo continuando "Disponível")
+// Regra combinada com o Gabriel (ver 0009_frescor_ovos_perfil.sql) e depois
+// deixada configurável (ver 0011_frescor_configuravel.sql):
+//   - coletado há até "diasNacional" dias -> pode enviar pra qualquer
+//     estado do Brasil
+//   - coletado há mais que "diasNacional" e até "diasLocal" dias -> só dá
+//     pra garantir envio dentro do estado configurado ("ufLocal")
+//   - depois de "diasLocal" dias, o lote sai dessa conta (não conta mais
+//     como "fresco o bastante" pra envio, mesmo continuando "Disponível")
 // Calculado sempre na hora (sem tarefa agendada) a partir da data de hoje.
 
 export interface OvoFreshnessBuckets {
@@ -237,11 +277,16 @@ function diasDesdeColeta(dataPostura: string, hoje: Date): number {
 }
 
 /** Estoque de ovo disponível pra venda, por raça, separado em duas janelas
- * de frescor. Chave do retorno: nome da espécie (lower + trim), pra casar
- * com `products.name` do mesmo jeito que 0006 (fotos) e 0008 (estoque de
- * ave) já fazem. Usada em Produtos/Ovos como coluna informativa — não muda
- * o campo de estoque editável, que continua funcionando como sempre. */
-export async function getOvoFreshnessBuckets(): Promise<Record<string, OvoFreshnessBuckets>> {
+ * de frescor (os nomes dos campos — "Ate5"/"Ate7" — ficaram do tempo em que
+ * os prazos eram fixos; hoje valem pros dias configurados em
+ * `config`, não necessariamente 5 e 7). Chave do retorno: nome da espécie
+ * (lower + trim), pra casar com `products.name` do mesmo jeito que 0006
+ * (fotos) e 0008 (estoque de ave) já fazem. Usada em Produtos/Ovos como
+ * coluna informativa — não muda o campo de estoque editável, que continua
+ * funcionando como sempre. */
+export async function getOvoFreshnessBuckets(
+  config: FrescorConfig,
+): Promise<Record<string, OvoFreshnessBuckets>> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("lotes_postura")
@@ -271,8 +316,8 @@ export async function getOvoFreshnessBuckets(): Promise<Record<string, OvoFreshn
     const dias = diasDesdeColeta(row.data_postura, hoje);
     if (!buckets[key]) buckets[key] = { qtdAte5: 0, qtdAte7: 0 };
 
-    if (dias <= 5) buckets[key].qtdAte5 += row.quantidade;
-    else if (dias <= 7) buckets[key].qtdAte7 += row.quantidade;
+    if (dias <= config.diasNacional) buckets[key].qtdAte5 += row.quantidade;
+    else if (dias <= config.diasLocal) buckets[key].qtdAte7 += row.quantidade;
   }
 
   return buckets;
@@ -286,11 +331,12 @@ export interface LoteProximoPrazo {
   diasColeta: number;
 }
 
-/** Lotes de ovos destinados à venda que estão a 6 ou 7 dias da coleta — o
- * prazo de envio garantido (7 dias) está terminando. Usada no aviso dentro
- * do Dashboard (calculado toda vez que a página carrega, sem precisar de
- * nenhuma tarefa agendada nem número de WhatsApp cadastrado). */
-export async function getLotesProximoPrazoAdmin(): Promise<LoteProximoPrazo[]> {
+/** Lotes de ovos destinados à venda que já passaram do prazo "nacional" mas
+ * ainda estão dentro do prazo "local" configurado — o prazo de envio
+ * garantido está terminando. Usada no aviso dentro do Dashboard (calculado
+ * toda vez que a página carrega, sem precisar de nenhuma tarefa agendada
+ * nem número de WhatsApp cadastrado). */
+export async function getLotesProximoPrazoAdmin(config: FrescorConfig): Promise<LoteProximoPrazo[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("lotes_postura")
@@ -315,7 +361,7 @@ export async function getLotesProximoPrazoAdmin(): Promise<LoteProximoPrazo[]> {
     baias: { nome: string; especie: string } | null;
   }[]) {
     const dias = diasDesdeColeta(row.data_postura, hoje);
-    if (dias !== 6 && dias !== 7) continue;
+    if (dias <= config.diasNacional || dias > config.diasLocal) continue;
 
     result.push({
       id: row.id,

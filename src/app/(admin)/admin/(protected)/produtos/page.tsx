@@ -1,15 +1,16 @@
 import Link from "next/link";
 import { Plus } from "lucide-react";
-import { getAllProductsAdmin, getOvoFreshnessBuckets } from "@/lib/data/admin";
+import { getAllProductsAdmin, getFrescorConfigAdmin, getOvoFreshnessBuckets } from "@/lib/data/admin";
 import { AdminProductTable } from "@/components/admin/AdminProductTable";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminProdutosPage() {
-  const [products, freshness] = await Promise.all([
+  const [products, frescorConfig] = await Promise.all([
     getAllProductsAdmin(),
-    getOvoFreshnessBuckets(),
+    getFrescorConfigAdmin(),
   ]);
+  const freshness = await getOvoFreshnessBuckets(frescorConfig);
 
   return (
     <div>
@@ -30,7 +31,7 @@ export default async function AdminProdutosPage() {
       </div>
 
       <div className="mt-6">
-        <AdminProductTable products={products} freshness={freshness} />
+        <AdminProductTable products={products} freshness={freshness} frescorConfig={frescorConfig} />
       </div>
     </div>
   );

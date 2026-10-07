@@ -1,9 +1,12 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useActionState, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import {
+  BarChart3,
   ChevronDown,
+  ChevronRight,
   Egg,
   Loader2,
   MessageSquarePlus,
@@ -13,7 +16,7 @@ import {
   Trash2,
   Users,
 } from "lucide-react";
-import { emojiForEspecie, type Baia } from "@/lib/types/domain";
+import { emojiForEspecie, type Ave, type AveStatus, type Baia, type LotePostura } from "@/lib/types/domain";
 import { Badge, badgeToneClasses, type BadgeTone } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Sheet } from "@/components/ui/Sheet";
@@ -22,6 +25,7 @@ import { createClient } from "@/lib/supabase/client";
 import { buildBaiaImagePath } from "@/lib/storage";
 import { ImageCropModal } from "@/components/admin/ImageCropModal";
 import { BaiaQrCode } from "@/components/admin/BaiaQrCode";
+import { PosturaBarChart, type PosturaSeriesPoint } from "@/components/admin/PosturaBarChart";
 import {
   createBaia,
   createObservacao,
@@ -55,9 +59,16 @@ const destinoTone: Record<Baia["destinoPadrao"], BadgeTone> = {
 
 export function BaiasManager({
   baias,
+  aves,
+  lotes,
   qrDataUrls,
 }: {
   baias: Baia[];
+  /** Plantel completo — filtrado por baia na hora de abrir "Ver aves". */
+  aves: Ave[];
+  /** Todos os lotes de postura — filtrados por baia na hora de abrir o
+   * gráfico de cada uma. */
+  lotes: LotePostura[];
   /** PNG (data URI) do QR Code de coleta de cada baia, já gerado no servidor
    * (page.tsx) — mapeado por baia.id. */
   qrDataUrls: Record<string, string>;
@@ -66,6 +77,8 @@ export function BaiasManager({
   const [editing, setEditing] = useState<Baia | null>(null);
   const [posturaFor, setPosturaFor] = useState<Baia | null>(null);
   const [obsFor, setObsFor] = useState<Baia | null>(null);
+  const [avesFor, setAvesFor] = useState<Baia | null>(null);
+  const [graficoFor, setGraficoFor] = useState<Baia | null>(null);
   const [search, setSearch] = useState("");
   const [isPending, startTransition] = useTransition();
 
@@ -168,15 +181,23 @@ export function BaiasManager({
               </div>
 
               {/* Contagem de aves vinculadas a essa baia — direto do banco,
-                  sempre batendo com o que está cadastrado em Plantel. */}
-              <p className="mt-2.5 flex items-center gap-1.5 text-xs text-brand-ink/60">
+                  sempre batendo com o que está cadastrado em Plantel. Clica
+                  pra ver a lista (nome, anilha, status) sem sair da tela. */}
+              <button
+                type="button"
+                onClick={() => setAvesFor(baia)}
+                className="mt-2.5 flex w-full items-center gap-1.5 rounded-lg py-0.5 text-left text-xs text-brand-ink/60 hover:text-brand-green"
+              >
                 <Users className="h-3.5 w-3.5 shrink-0 text-brand-ink/40" aria-hidden="true" />
-                {baia.totalAves === 0
-                  ? "0 aves"
-                  : `${baia.totalAves} ave${baia.totalAves === 1 ? "" : "s"} · ${baia.machos} macho${baia.machos === 1 ? "" : "s"}, ${baia.femeas} fêmea${baia.femeas === 1 ? "" : "s"}`}
-              </p>
+                <span className="flex-1">
+                  {baia.totalAves === 0
+                    ? "0 aves"
+                    : `${baia.totalAves} ave${baia.totalAves === 1 ? "" : "s"} · ${baia.machos} macho${baia.machos === 1 ? "" : "s"}, ${baia.femeas} fêmea${baia.femeas === 1 ? "" : "s"}`}
+                </span>
+                <ChevronRight className="h-3 w-3 shrink-0 text-brand-ink/30" aria-hidden="true" />
+              </button>
 
-              <div className="mt-4 grid grid-cols-3 gap-2">
+              <div className="mt-4 grid grid-cols-2 gap-2">
                 <button
                   type="button"
                   onClick={() => setEditing(baia)}
@@ -200,6 +221,14 @@ export function BaiasManager({
                 >
                   <MessageSquarePlus className="h-3.5 w-3.5" aria-hidden="true" />
                   Obs.
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setGraficoFor(baia)}
+                  className="flex items-center justify-center gap-1.5 rounded-full border border-brand-sand px-2 py-2 text-xs font-medium text-brand-ink/70 hover:border-brand-green hover:text-brand-green"
+                >
+                  <BarChart3 className="h-3.5 w-3.5" aria-hidden="true" />
+                  Gráfico
                 </button>
               </div>
             </div>
@@ -229,6 +258,22 @@ export function BaiasManager({
       )}
 
       {obsFor && <ObsSheet baia={obsFor} onClose={() => setObsFor(null)} />}
+
+      {avesFor && (
+        <BaiaAvesSheet
+          baia={avesFor}
+          aves={aves.filter((a) => a.baiaId === avesFor.id)}
+          onClose={() => setAvesFor(null)}
+        />
+      )}
+
+      {graficoFor && (
+        <BaiaGraficoSheet
+          baia={graficoFor}
+          lotes={lotes.filter((l) => l.baiaId === graficoFor.id)}
+          onClose={() => setGraficoFor(null)}
+        />
+      )}
     </div>
   );
 }
@@ -793,6 +838,141 @@ function ObsSheet({ baia, onClose }: { baia: Baia; onClose: () => void }) {
           {error}
         </p>
       )}
+    </Sheet>
+  );
+}
+
+const AVE_STATUS_TONE: Record<AveStatus, BadgeTone> = {
+  Filhote: "gold",
+  "Disponível": "available",
+  Reprodutor: "gold",
+  "Macho reprodutor": "gold",
+  "Fêmea reprodutora": "gold",
+  Matriz: "gold",
+  Reservado: "low",
+  Vendido: "neutral",
+  Separado: "low",
+  "Óbito": "out",
+};
+
+/** Mostra quem está vinculado a essa baia agora (nome, anilha, status) sem
+ * precisar ir até o Plantel e filtrar/buscar por lá — essa lista é a mesma
+ * usada pra calcular a contagem do card (aves "Vendido"/"Óbito" já não
+ * aparecem aqui nem lá, a baixa propaga pros dois lugares igual). */
+function BaiaAvesSheet({ baia, aves, onClose }: { baia: Baia; aves: Ave[]; onClose: () => void }) {
+  return (
+    <Sheet open onClose={onClose} title={`Aves — ${baia.nome}`}>
+      <p className="text-sm text-brand-ink/60">
+        {aves.length === 0
+          ? "Nenhuma ave vinculada a essa baia ainda."
+          : `${aves.length} ave${aves.length === 1 ? "" : "s"} vinculada${aves.length === 1 ? "" : "s"} — sempre em dia com o Plantel, em tempo real.`}
+      </p>
+
+      {aves.length > 0 && (
+        <ul className="mt-4 divide-y divide-brand-sand/60">
+          {aves.map((ave) => (
+            <li key={ave.id} className="flex items-center justify-between gap-3 py-2.5">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium text-brand-ink">{ave.nome}</p>
+                <p className="truncate text-xs text-brand-ink/50">
+                  {ave.codigo}
+                  {ave.anilha ? ` · Anilha ${ave.anilha}` : " · Sem anilha"}
+                </p>
+              </div>
+              <div className="flex shrink-0 items-center gap-1.5">
+                <Badge tone="neutral">{ave.sexo}</Badge>
+                <Badge tone={AVE_STATUS_TONE[ave.status]}>{ave.status}</Badge>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <Link
+        href="/admin/aves"
+        onClick={onClose}
+        className="mt-5 inline-block text-sm font-medium text-brand-green hover:underline"
+      >
+        Ver/editar tudo no Plantel →
+      </Link>
+    </Sheet>
+  );
+}
+
+/** Soma a quantidade postada por dia (todos os destinos juntos) nos últimos
+ * `dias`, preenchendo com zero os dias sem coleta — assim o gráfico sempre
+ * mostra o período inteiro, não só os dias com lançamento. */
+function buildDailySeries(lotes: LotePostura[], dias: number): PosturaSeriesPoint[] {
+  const totals = new Map<string, number>();
+  for (const lote of lotes) {
+    totals.set(lote.dataPostura, (totals.get(lote.dataPostura) ?? 0) + lote.quantidade);
+  }
+
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
+
+  const serie: PosturaSeriesPoint[] = [];
+  for (let i = dias - 1; i >= 0; i--) {
+    const d = new Date(hoje);
+    d.setDate(d.getDate() - i);
+    const key = d.toISOString().split("T")[0];
+    serie.push({ data: key, quantidade: totals.get(key) ?? 0 });
+  }
+  return serie;
+}
+
+/** Gráfico de postura por data, só dessa baia — pra visualizar rápido o
+ * ritmo de produção (todos os destinos somados: venda, chocadeira,
+ * reservado e descarte). */
+function BaiaGraficoSheet({
+  baia,
+  lotes,
+  onClose,
+}: {
+  baia: Baia;
+  lotes: LotePostura[];
+  onClose: () => void;
+}) {
+  const [periodo, setPeriodo] = useState<30 | 90>(30);
+  const serie = useMemo(() => buildDailySeries(lotes, periodo), [lotes, periodo]);
+  const total = serie.reduce((sum, d) => sum + d.quantidade, 0);
+  const diasComPostura = serie.filter((d) => d.quantidade > 0).length;
+
+  return (
+    <Sheet open onClose={onClose} title={`Postura — ${baia.nome}`}>
+      <div className="flex items-start justify-between gap-3">
+        <p className="text-sm text-brand-ink/60">
+          {total === 0
+            ? `Nenhuma postura registrada nos últimos ${periodo} dias.`
+            : `${total} ovo${total === 1 ? "" : "s"} em ${diasComPostura} dia${diasComPostura === 1 ? "" : "s"} com coleta.`}
+        </p>
+        <div className="flex shrink-0 gap-1">
+          {([30, 90] as const).map((p) => (
+            <button
+              key={p}
+              type="button"
+              onClick={() => setPeriodo(p)}
+              className={cn(
+                "rounded-full border px-2.5 py-1 text-xs font-medium",
+                periodo === p
+                  ? "border-brand-green bg-brand-green text-brand-cream"
+                  : "border-brand-sand text-brand-ink/60 hover:border-brand-green/50",
+              )}
+            >
+              {p}d
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="mt-4 rounded-xl border border-brand-sand/70 bg-white p-3">
+        <PosturaBarChart data={serie} />
+      </div>
+
+      <p className="mt-3 text-xs text-brand-ink/40">
+        Soma todos os destinos (venda, chocadeira, reservado e descarte) de cada dia de coleta
+        dessa baia. Passe o mouse (ou toque) numa barra pra ver a data e a quantidade exata.
+      </p>
     </Sheet>
   );
 }

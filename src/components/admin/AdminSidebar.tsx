@@ -12,6 +12,7 @@ import {
   LogOut,
   ExternalLink,
   UserCog,
+  Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { signOut } from "@/app/(admin)/admin/login/actions";
@@ -23,6 +24,7 @@ const navItems = [
   { href: "/admin/baias", label: "Baias", icon: Warehouse, exact: false },
   { href: "/admin/aves", label: "Plantel", icon: Bird, exact: false },
   { href: "/admin/postura", label: "Postura", icon: Egg, exact: false },
+  { href: "/admin/configuracoes", label: "Configurações", icon: Settings, exact: false },
   { href: "/admin/perfil", label: "Perfil", icon: UserCog, exact: false },
 ];
 
