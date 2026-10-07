@@ -8,6 +8,7 @@ import {
   BarChart3,
   ChevronDown,
   ChevronRight,
+  ClipboardList,
   Egg,
   Loader2,
   MessageSquarePlus,
@@ -178,6 +179,10 @@ export function BaiasManager({
             aria-hidden="true"
           />
         </div>
+        <Button href="/admin/baias/lancamento" variant="outline">
+          <ClipboardList className="h-4 w-4" aria-hidden="true" />
+          Lançamento diário
+        </Button>
         <Button onClick={() => setNovaOpen(true)}>
           <Plus className="h-4 w-4" aria-hidden="true" />
           Nova baia

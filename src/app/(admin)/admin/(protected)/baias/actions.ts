@@ -4,11 +4,13 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { nextCodigo } from "@/lib/actions/codigo";
 import { parsePriceInput } from "@/lib/utils";
-import { emojiForEspecie, type AveStatus } from "@/lib/types/domain";
+import { emojiForEspecie, type AveStatus, type Destino } from "@/lib/types/domain";
 
 export interface FormState {
   error: string | null;
 }
+
+type DbClient = Awaited<ReturnType<typeof createClient>>;
 
 function revalidateGestaoPaths() {
   revalidatePath("/admin/baias");
@@ -209,8 +211,59 @@ export async function createObservacao(baiaId: string, texto: string): Promise<F
 // ── Postura (novo lote de ovos) ──────────────────────────────────────────
 
 interface PosturaItem {
-  destino: "venda" | "choc" | "reservado" | "descarte";
+  destino: Destino;
   quantidade: number;
+}
+
+/** Insere um único lote de postura — o destino escolhido já define o status
+ * inicial e, quando vai direto pra chocadeira, calcula a previsão de
+ * eclosão (21 dias é o padrão da maioria das aves domésticas). Compartilhado
+ * entre o lançamento normal de uma baia (createPostura, logo abaixo) e o
+ * lançamento mestre de todas as baias de uma vez (createLancamentoMestre,
+ * mais abaixo) — assim os dois caminhos nunca podem ficar com regras
+ * diferentes por engano (a coleta por QR Code, em
+ * coletar/[token]/actions.ts, usa a função equivalente no banco,
+ * coletar_registrar_postura, com a mesma regra). */
+async function inserirLotePostura(
+  supabase: DbClient,
+  params: {
+    baiaId: string;
+    quantidade: number;
+    destino: Destino;
+    precoUnit: number | null;
+    dataPostura?: string;
+  },
+): Promise<{ error: string | null }> {
+  let status: "Disponível" | "Incubando" | "Reservado" | "Descartado" = "Disponível";
+  let eclosaoPrevista: string | null = null;
+
+  const baseDate = params.dataPostura ? new Date(`${params.dataPostura}T00:00:00`) : new Date();
+
+  if (params.destino === "choc") {
+    status = "Incubando";
+    const eclosao = new Date(baseDate);
+    eclosao.setDate(eclosao.getDate() + 21);
+    eclosaoPrevista = eclosao.toISOString().split("T")[0];
+  } else if (params.destino === "reservado") {
+    status = "Reservado";
+  } else if (params.destino === "descarte") {
+    status = "Descartado";
+  }
+
+  const codigo = await nextCodigo(supabase, "lotes_postura", "L", 4);
+
+  const { error } = await supabase.from("lotes_postura").insert({
+    codigo,
+    baia_id: params.baiaId,
+    quantidade: params.quantidade,
+    preco_unit: params.precoUnit,
+    destino: params.destino,
+    status,
+    eclosao_prevista: eclosaoPrevista,
+    ...(params.dataPostura ? { data_postura: params.dataPostura } : {}),
+  });
+
+  return { error: error?.message ?? null };
 }
 
 /** Um único lançamento de postura pode ter quantidades diferentes indo pra
@@ -255,42 +308,109 @@ export async function createPostura(
 
   const precoUnit = precoInput ?? baia?.preco_ovo ?? null;
 
-  // Mesma lógica do protótipo pra cada item: o destino escolhido já define o
-  // status e, quando vai direto pra chocadeira, calcula a previsão de
-  // eclosão (21 dias é o padrão da maioria das aves domésticas).
-  const baseDate = dataPostura ? new Date(`${dataPostura}T00:00:00`) : new Date();
-
   for (const item of itens) {
-    let status: "Disponível" | "Incubando" | "Reservado" | "Descartado" = "Disponível";
-    let eclosaoPrevista: string | null = null;
-
-    if (item.destino === "choc") {
-      status = "Incubando";
-      const eclosao = new Date(baseDate);
-      eclosao.setDate(eclosao.getDate() + 21);
-      eclosaoPrevista = eclosao.toISOString().split("T")[0];
-    } else if (item.destino === "reservado") {
-      status = "Reservado";
-    } else if (item.destino === "descarte") {
-      status = "Descartado";
-    }
-
-    const codigo = await nextCodigo(supabase, "lotes_postura", "L", 4);
-
-    const { error } = await supabase.from("lotes_postura").insert({
-      codigo,
-      baia_id: baiaId,
+    const { error } = await inserirLotePostura(supabase, {
+      baiaId,
       quantidade: item.quantidade,
-      preco_unit: precoUnit,
       destino: item.destino,
-      status,
-      eclosao_prevista: eclosaoPrevista,
-      ...(dataPostura ? { data_postura: dataPostura } : {}),
+      precoUnit,
+      dataPostura,
     });
-
-    if (error) return { error: error.message };
+    if (error) return { error };
   }
 
   revalidateGestaoPaths();
   return { error: null };
+}
+
+// ── Lançamento mestre (postura de todas as baias, numa tela só) ─────────
+
+interface LancamentoMestreItem {
+  baiaId: string;
+  quantidade: number;
+}
+
+export interface LancamentoMestreResult extends FormState {
+  totalBaias?: number;
+  totalOvos?: number;
+}
+
+/** Lançamento mestre: registra a coleta do dia de várias baias de uma vez —
+ * uma quantidade por baia, sempre indo pro destino padrão cadastrado nela
+ * (pra manter simples; quando um dia precisar de um destino diferente numa
+ * baia específica, continua dando pra usar o "Postura" normal daquela
+ * baia). A mesma ação serve tanto pra tela dentro do painel
+ * (/admin/baias/lancamento) quanto pro QR Code mestre (/coletar/mestre) —
+ * literalmente a mesma função dos dois lugares, então não tem como os dois
+ * caminhos ficarem dessincronizados. Reaproveita inserirLotePostura (acima),
+ * a mesma regra de status/eclosão usada em todo lançamento de postura do
+ * site. */
+export async function createLancamentoMestre(
+  _prevState: LancamentoMestreResult,
+  formData: FormData,
+): Promise<LancamentoMestreResult> {
+  let itens: LancamentoMestreItem[];
+  try {
+    itens = JSON.parse(String(formData.get("itens") ?? "[]"));
+  } catch {
+    return { error: "Não foi possível ler as quantidades informadas." };
+  }
+
+  const validos = (Array.isArray(itens) ? itens : []).filter(
+    (item) => item.baiaId && item.quantidade > 0,
+  );
+  if (validos.length === 0) {
+    return { error: "Informe a quantidade coletada em pelo menos uma baia." };
+  }
+
+  const dataPostura = String(formData.get("data_postura") ?? "").trim() || undefined;
+
+  const supabase = await createClient();
+
+  const { data: baiasInfo, error: baiasError } = await supabase
+    .from("baias")
+    .select("id, destino_padrao, preco_ovo")
+    .in(
+      "id",
+      validos.map((item) => item.baiaId),
+    );
+
+  if (baiasError) return { error: baiasError.message };
+
+  const infoPorId = new Map((baiasInfo ?? []).map((b) => [b.id, b]));
+  let totalOvos = 0;
+  let totalBaias = 0;
+
+  for (const item of validos) {
+    const info = infoPorId.get(item.baiaId);
+    // Baia pode ter sido excluída entre a tela carregar e o envio — ignora
+    // em vez de travar o lançamento inteiro por causa de uma só.
+    if (!info) continue;
+
+    const { error } = await inserirLotePostura(supabase, {
+      baiaId: item.baiaId,
+      quantidade: item.quantidade,
+      destino: info.destino_padrao,
+      precoUnit: info.preco_ovo,
+      dataPostura,
+    });
+    if (error) {
+      return {
+        error:
+          totalBaias > 0
+            ? `Lançado em ${totalBaias} baia${totalBaias === 1 ? "" : "s"} antes de travar: ${error}`
+            : error,
+      };
+    }
+    totalOvos += item.quantidade;
+    totalBaias += 1;
+  }
+
+  revalidateGestaoPaths();
+  // Essa ação também roda a partir de /coletar/mestre (fora do grupo
+  // admin) — revalida esse caminho também, senão a tela de coleta ficaria
+  // com a sensação de "não salvou" até o próximo F5 manual.
+  revalidatePath("/coletar/mestre");
+
+  return { error: null, totalBaias, totalOvos };
 }
